@@ -1,7 +1,6 @@
 #include <WITCH/WITCH.h>
 #include <WITCH/RAND/RAND.h>
 
-#define shaper_set_MaxKeySize 64
 #include "shaper/shaper.h"
 shaper_t shaper;
 
@@ -85,11 +84,11 @@ int main(){
 
   shaper_t::ShapeID_t sid_list[5000];
 
-  uintptr_t TotalPush = 2;
+  uintptr_t TotalPush = 1;
   for(uintptr_t i = 0; i < TotalPush; i++){
     sid_list[i] = rectangle_push_back(
       {
-        .depth = (uint16_t)(i * 8)
+        .depth = (uint16_t)(1 * 8)
       },
       {
         .xSize = (f32_t)(RAND_hard_32() % 100),
@@ -116,7 +115,11 @@ int main(){
       shaper_t::BlockTraverse_t BlockTraverse;
       auto ShapeType = BlockTraverse.Init(shaper, KeyTraverse.Get(shaper));
       do{
-        
+        printf("block came\n");
+        static uint32_t salsa;
+        if(salsa++ > 10){
+          exit(1);
+        }
       }while(BlockTraverse.Loop(shaper));
     }
   }

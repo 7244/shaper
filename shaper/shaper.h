@@ -1,7 +1,128 @@
+#ifndef shaper_set_MaxShapeTypes
+  #define shaper_set_MaxShapeTypes 0x80
+#endif
+
+#ifndef shaper_set_MaxKeyAmount
+  #define shaper_set_MaxKeyAmount 0x80
+#endif
+
+/* in bytes */
+#ifndef shaper_set_MaxKeySize
+  #define shaper_set_MaxKeySize 8
+#endif
+
+#ifdef shaper_set_MaxElementPerBlock
+  #error did you meant to define shaper_set_MaxMaxElementPerBlock
+#endif
+#ifndef shaper_set_MaxMaxElementPerBlock
+  #define shaper_set_MaxMaxElementPerBlock 0x8000
+#endif
+
+/* in bytes */
+#ifdef shaper_set_MaxKeySizesSum
+  #define shaper_set_MaxKeySizesSum 0xff
+#endif
+
+#ifndef shaper_set_MaxShapeRenderDataSize
+  #define shaper_set_MaxShapeRenderDataSize 0xffff
+#endif
+#ifndef shaper_set_MaxShapeDataSize
+  #define shaper_set_MaxShapeDataSize 0xffff
+#endif
+
 struct shaper_t{
   public: /* -------------------------------------------------------------------------------- */
 
-  typedef uint8_t ShapeTypeAmount_t;
+  #if shaper_set_MaxShapeTypes <= 0xff
+    typedef uint8_t ShapeTypeAmount_t;
+  #elif shaper_set_MaxShapeTypes <= 0xffff
+    typedef uint16_t ShapeTypeAmount_t;
+  #elif shaper_set_MaxShapeTypes <= 0xffffffff
+    typedef uint32_t ShapeTypeAmount_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxShapeTypes <= 0x100
+    typedef uint8_t ShapeTypeIndex_t;
+  #elif shaper_set_MaxShapeTypes <= 0x10000
+    typedef uint16_t ShapeTypeIndex_t;
+  #elif shaper_set_MaxShapeTypes <= 0x100000000
+    typedef uint32_t ShapeTypeIndex_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxKeyAmount <= 0xff
+    typedef uint8_t KeyAmount_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxKeyAmount <= 0x100
+    typedef uint8_t KeyIndex_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxMaxElementPerBlock <= 0xff
+    typedef uint8_t MaxElementPerBlock_t;
+  #elif shaper_set_MaxMaxElementPerBlock <= 0xffff
+    typedef uint16_t MaxElementPerBlock_t;
+  #elif shaper_set_MaxMaxElementPerBlock <= 0xffffffff
+    typedef uint32_t MaxElementPerBlock_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxMaxElementPerBlock <= 0x100
+    typedef uint8_t ElementIndexInBlock_t;
+  #elif shaper_set_MaxMaxElementPerBlock <= 0x10000
+    typedef uint16_t ElementIndexInBlock_t;
+  #elif shaper_set_MaxMaxElementPerBlock <= 0x100000000
+    typedef uint32_t ElementIndexInBlock_t;
+  #else
+    #error ?
+  #endif
+
+  typedef uint8_t KeyData_t;
+
+  #if shaper_set_MaxKeySize <= 0xff
+    typedef uint8_t KeySizeInBytes_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxKeySize * 8 <= 0xff
+    typedef uint8_t KeySizeInBits_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxKeySizesSum <= 0xff
+    typedef uint8_t KeySizesSumInBytes_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxShapeRenderDataSize <= 0xff
+    typedef uint8_t ShapeRenderDataSize_t;
+  #elif shaper_set_MaxShapeRenderDataSize <= 0xffff
+    typedef uint16_t ShapeRenderDataSize_t;
+  #elif shaper_set_MaxShapeRenderDataSize <= 0xffffffff
+    typedef uint32_t ShapeRenderDataSize_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxShapeDataSize <= 0xff
+    typedef uint8_t ShapeDataSize_t;
+  #elif shaper_set_MaxShapeDataSize <= 0xffff
+    typedef uint16_t ShapeDataSize_t;
+  #elif shaper_set_MaxShapeDataSize <= 0xffffffff
+    typedef uint32_t ShapeDataSize_t;
+  #else
+    #error ?
+  #endif
+
+  typedef uint8_t ShapeRenderData_t;
+  typedef uint8_t ShapeData_t;
 
   private: /* ------------------------------------------------------------------------------- */
 
@@ -9,7 +130,10 @@ struct shaper_t{
   typedef uint16_t ktbmnr_t;
 
   /* block list node reference */
-  /* total element a shape can have is = (pow(2, (sizeof(blnr_t) * 8)) * MaxElementPerBlock) */
+  /*
+    total element a ShapeType can have is =
+      (pow(2, (sizeof(blnr_t) * 8)) * MaxElementPerBlock)
+  */
   typedef uint16_t blnr_t;
 
   #define BDBT_set_prefix kt
@@ -17,7 +141,7 @@ struct shaper_t{
   #define BDBT_set_lcpp
   #define BDBT_set_KeySize 0
   #ifdef shaper_set_MaxKeySize
-    #define BDBT_set_MaxKeySize shaper_set_MaxKeySize
+    #define BDBT_set_MaxKeySize (shaper_set_MaxKeySize * 8)
   #endif
   #define BDBT_set_AreWeInsideStruct 1
   #include <BDBT/BDBT.h>
@@ -29,8 +153,13 @@ struct shaper_t{
 
   #pragma pack(push, 1)
     struct KeyInfo_t{
-      uint8_t Size;
+      KeySizeInBytes_t Size;
       Key_t::BitOrder_t BitOrder;
+
+      /* size in bits */
+      KeySizeInBits_t sibit(){
+        return (KeySizeInBits_t)Size * 8;
+      }
     };
   #pragma pack(pop)
 
@@ -51,14 +180,18 @@ struct shaper_t{
   #include <WITCH/BLL/BLL.h>
   struct Block_t{
     /* 
-      (RenderDataSize + DataSize + sizeof(ShapeList_t::nr_t)) * (MaxElementPerBlock + 1) +
+      (RenderDataSize + DataSize + sizeof(ShapeList_t::nr_t)) * (MaxElementPerBlock_m1 + 1) +
       sizeof(PerBlockData_t)
     */
     BlockList_t List;
 
-    uint8_t MaxElementPerBlock; /* (p.MaxElementPerBlock[n] - 1) */
-    uint16_t RenderDataSize;
-    uint16_t DataSize;
+    ElementIndexInBlock_t MaxElementPerBlock_m1; /* minus 1, (p.MaxElementPerBlock[n] - 1) */
+    ShapeRenderDataSize_t RenderDataSize;
+    ShapeDataSize_t DataSize;
+
+    MaxElementPerBlock_t MaxElementPerBlock(){
+      return (MaxElementPerBlock_t)MaxElementPerBlock_m1 + 1;
+    }
   }*Blocks;
 
   #pragma pack(push, 1)
@@ -66,7 +199,7 @@ struct shaper_t{
       ShapeTypeAmount_t ShapeType;
       BlockList_NodeReference_t FirstBlockNR;
       BlockList_NodeReference_t LastBlockNR;
-      uint8_t LastBlockElementCount;
+      ElementIndexInBlock_t LastBlockElementCount;
     };
   #pragma pack(pop)
 
@@ -84,7 +217,7 @@ struct shaper_t{
     struct shape_t{
       bm_t::nr_t bmid;
       BlockList_t::nr_t blid;
-      uint8_t ElementIndex;
+      ElementIndexInBlock_t ElementIndex;
     };
   #pragma pack(pop)
 
@@ -99,21 +232,19 @@ struct shaper_t{
   #include <WITCH/BLL/BLL.h>
   ShapeList_t ShapeList;
 
-  typedef uint8_t KeyIndex_t;
-
-  KeyIndex_t KeyAmount;
+  KeyAmount_t KeyAmount;
   KeyInfo_t KeyInfos[8];
-  uint8_t KeySizesSum;
+  KeySizesSumInBytes_t KeySizesSum;
   ShapeTypeAmount_t ShapeTypeAmount;
 
   /* function internal datas */
   struct fid_t{
     union{
-      uint8_t *base;
+      void *base;
       /* used in remove */
       kt_NodeReference_t *knrs;
       /* used in traverse for store keys */
-      uint8_t *KeyDatas;
+      KeyData_t *KeyDatas;
     };
 
     Key_t::Traverse_t *tra;
@@ -122,11 +253,11 @@ struct shaper_t{
     #endif
 
     void Open(const shaper_t *shaper){
-      base = new uint8_t[
+      base = ::operator new(
         sizeof(kt_NodeReference_t) * shaper->KeyAmount > shaper->KeySizesSum ? 
         sizeof(kt_NodeReference_t) * shaper->KeyAmount :
         shaper->KeySizesSum
-      ];
+      );
 
       tra = new Key_t::Traverse_t[shaper->KeyAmount];
 
@@ -134,7 +265,7 @@ struct shaper_t{
         ta = new Key_t::Traverse_t::ta_t *[shaper->KeyAmount];
         for(KeyIndex_t KeyIndex = 0; KeyIndex < shaper->KeyAmount; KeyIndex++){
           ta[KeyIndex] = new Key_t::Traverse_t::ta_t[
-            Key_t::Traverse_t::GetTraverseArraySize(shaper->KeyInfos[KeyIndex].Size * 8)
+            Key_t::Traverse_t::GetTraverseArraySize(shaper->KeyInfos[KeyIndex].sibit())
           ];
         }
       #endif
@@ -149,7 +280,7 @@ struct shaper_t{
 
       delete tra;
 
-      delete base;
+      ::operator delete(base);
     }
   }fid;
 
@@ -160,16 +291,16 @@ struct shaper_t{
   */
 
   /* TODO those are made uintptr_t to not overflow, maybe there is better way? */
-  uint8_t *_GetRenderData(
+  ShapeRenderData_t *_GetRenderData(
     ShapeTypeAmount_t ShapeType,
     BlockList_t::nr_t blid,
     uintptr_t ElementIndex
   ){
-    return &((uint8_t *)Blocks[ShapeType].List[blid])[
-      Blocks[ShapeType].RenderDataSize * ElementIndex
+    return &((ShapeRenderData_t *)Blocks[ShapeType].List[blid])[
+      (uintptr_t)Blocks[ShapeType].RenderDataSize * ElementIndex
     ];
   }
-  uint8_t *_GetData(
+  ShapeData_t *_GetData(
     ShapeTypeAmount_t ShapeType,
     BlockList_t::nr_t blid,
     uintptr_t ElementIndex
@@ -177,7 +308,7 @@ struct shaper_t{
     return &_GetRenderData(
       ShapeType,
       blid,
-      (uintptr_t)Blocks[ShapeType].MaxElementPerBlock + 1
+      Blocks[ShapeType].MaxElementPerBlock()
     )[(uintptr_t)Blocks[ShapeType].DataSize * ElementIndex];
   }
   ShapeList_t::nr_t &_GetShapeID(
@@ -188,7 +319,7 @@ struct shaper_t{
     return *(ShapeList_t::nr_t *)&_GetData(
       ShapeType,
       blid,
-      (uintptr_t)Blocks[ShapeType].MaxElementPerBlock + 1
+      Blocks[ShapeType].MaxElementPerBlock()
     )[sizeof(ShapeList_t::nr_t) * ElementIndex];
   }
 
@@ -223,14 +354,14 @@ struct shaper_t{
   using bmid_t = bm_t::nr_t;
   using ShapeID_t = ShapeList_t::nr_t;
 
-  uint8_t *GetRenderData(
+  ShapeRenderData_t *GetRenderData(
     ShapeID_t ShapeID
   ){
     auto &shape = ShapeList[ShapeID];
     auto bmbase = (bm_BaseData_t *)bm[shape.bmid];
     return _GetRenderData(bmbase->ShapeType, shape.blid, shape.ElementIndex);
   }
-  uint8_t *GetData(
+  ShapeData_t *GetData(
     ShapeID_t ShapeID
   ){
     auto &shape = ShapeList[ShapeID];
@@ -244,12 +375,12 @@ struct shaper_t{
     return *(PerBlockData_t *)&_GetShapeID(
       ShapeType,
       BlockID,
-      (uintptr_t)Blocks[ShapeType].MaxElementPerBlock + 1
+      Blocks[ShapeType].MaxElementPerBlock()
     );
   }
 
   struct BlockProperties_t{
-    uint16_t MaxElementPerBlock;
+    MaxElementPerBlock_t MaxElementPerBlock;
     decltype(Block_t::RenderDataSize) RenderDataSize;
     decltype(Block_t::DataSize) DataSize;
   };
@@ -282,14 +413,14 @@ struct shaper_t{
       if(p.BlockProperties[i].MaxElementPerBlock > 0x100){
         __abort();
       }
-      Blocks[i].MaxElementPerBlock = p.BlockProperties[i].MaxElementPerBlock - 1;
+      Blocks[i].MaxElementPerBlock_m1 = p.BlockProperties[i].MaxElementPerBlock - 1;
       Blocks[i].RenderDataSize = p.BlockProperties[i].RenderDataSize;
       Blocks[i].DataSize = p.BlockProperties[i].DataSize;
 
       Blocks[i].List.Open(
         (
-          Blocks[i].RenderDataSize + Blocks[i].DataSize + sizeof(ShapeList_t::nr_t)
-        ) * (Blocks[i].MaxElementPerBlock + 1) + sizeof(PerBlockData_t)
+          (uintptr_t)Blocks[i].RenderDataSize + Blocks[i].DataSize + sizeof(ShapeList_t::nr_t)
+        ) * Blocks[i].MaxElementPerBlock() + sizeof(PerBlockData_t)
       );
     }
 
@@ -326,13 +457,13 @@ struct shaper_t{
 
     Block_t &Block = Blocks[ShapeType];
 
-    auto _KeyDataArray = (uint8_t *)KeyDataArray;
+    auto _KeyDataArray = (KeyData_t *)KeyDataArray;
 
     kt_NodeReference_t nr = kt_root;
     for(KeyIndex_t KeyIndex = 0; KeyIndex < KeyAmount; KeyIndex++){
       Key_t::KeySize_t bdbt_ki;
-      Key_t::q(&kt, KeyInfos[KeyIndex].Size * 8, _KeyDataArray, &bdbt_ki, &nr);
-      if(bdbt_ki != KeyInfos[KeyIndex].Size * 8){
+      Key_t::q(&kt, KeyInfos[KeyIndex].sibit(), _KeyDataArray, &bdbt_ki, &nr);
+      if(bdbt_ki != KeyInfos[KeyIndex].sibit()){
         /* query failed to find rest so lets make new block manager */
 
         bmnr = bm.NewNode();
@@ -353,7 +484,7 @@ struct shaper_t{
             out = *(kt_NodeReference_t *)&bmnr;
           }
 
-          Key_t::a(&kt, KeyInfos[KeyIndex].Size * 8, _KeyDataArray, bdbt_ki, nr, out);
+          Key_t::a(&kt, KeyInfos[KeyIndex].sibit(), _KeyDataArray, bdbt_ki, nr, out);
           bdbt_ki = 0;
 
           nr = out;
@@ -370,7 +501,7 @@ struct shaper_t{
     bmnr = *(bm_NodeReference_t *)&nr;
     bmbase = (bm_BaseData_t *)bm[bmnr];
 
-    if(bmbase->LastBlockElementCount == Block.MaxElementPerBlock){
+    if(bmbase->LastBlockElementCount == Block.MaxElementPerBlock_m1){
       bmbase->LastBlockElementCount = 0;
       auto blnr = Block.List.NewNode();
       *BlockID = blnr;
@@ -461,7 +592,7 @@ struct shaper_t{
       bmbase->LastBlockNR = blid.Prev(&Block->List);
       *PerBlockData = GetPerBlockData(ShapeType, blid);
       Block->List.Recycle(blid);
-      bmbase->LastBlockElementCount = Block->MaxElementPerBlock;
+      bmbase->LastBlockElementCount = Block->MaxElementPerBlock_m1;
       return;
     }
 
@@ -471,19 +602,19 @@ struct shaper_t{
     *PerBlockData = GetPerBlockData(ShapeType, bmbase->LastBlockNR);
     Block->List.Recycle(bmbase->LastBlockNR);
 
-    auto KeyDataArray = (uint8_t *)&bmbase[1];
+    auto KeyDataArray = (KeyData_t *)&bmbase[1];
     auto knr = kt_root;
 
     for(KeyIndex_t KeyIndex = 0; KeyIndex < KeyAmount; KeyIndex++){
       fid.knrs[KeyIndex] = knr;
-      Key_t::cq(&kt, KeyInfos[KeyIndex].Size * 8, KeyDataArray, &knr);
+      Key_t::cq(&kt, KeyInfos[KeyIndex].sibit(), KeyDataArray, &knr);
       KeyDataArray += KeyInfos[KeyIndex].Size;
     }
 
     /* TODO this part can be faster if used some different function instead of .r */
     for(KeyIndex_t KeyIndex = KeyAmount - 1;;){
       KeyDataArray -= KeyInfos[KeyIndex].Size;
-      Key_t::r(&kt, KeyInfos[KeyIndex].Size * 8, KeyDataArray, fid.knrs[KeyIndex]);
+      Key_t::r(&kt, KeyInfos[KeyIndex].sibit(), KeyDataArray, fid.knrs[KeyIndex]);
       if(kt_inrhc(&kt, fid.knrs[KeyIndex])){
         break;
       }
@@ -499,7 +630,7 @@ struct shaper_t{
 
   struct KeyTraverse_t{
     KeyIndex_t KeyIndex;
-    uint8_t *KeyData;
+    KeyData_t *KeyData;
 
     void Init(shaper_t &shaper){
       KeyIndex = (KeyIndex_t)-1;
@@ -560,7 +691,7 @@ struct shaper_t{
     ShapeTypeAmount_t ShapeType;
     BlockList_t::nr_t From;
     BlockList_t::nr_t To;
-    uint8_t LastBlockElementCount;
+    ElementIndexInBlock_t LastBlockElementCount;
 
     public:
 
@@ -579,11 +710,11 @@ struct shaper_t{
       From = From.Next(&shaper.Blocks[ShapeType].List);
       return true;
     }
-    uint16_t GetAmount(shaper_t &shaper){ /* TODO uint16_t is bad */
+    MaxElementPerBlock_t GetAmount(shaper_t &shaper){
       if(From == To){
-        return LastBlockElementCount;
+        return (MaxElementPerBlock_t)LastBlockElementCount + 1;
       }
-      return shaper.Blocks[ShapeType].MaxElementPerBlock;
+      return shaper.Blocks[ShapeType].MaxElementPerBlock();
     }
     void *GetRenderData(shaper_t &shaper){
       return shaper._GetRenderData(ShapeType, From, 0);
@@ -594,6 +725,10 @@ struct shaper_t{
   };
 };
 
-#ifdef shaper_set_MaxKeySize
-  #undef shaper_set_MaxKeySize
-#endif
+#undef shaper_set_MaxShapeDataSize
+#undef shaper_set_MaxShapeRenderDataSize
+#undef shaper_set_MaxKeySizesSum
+#undef shaper_set_MaxMaxElementPerBlock
+#undef shaper_set_MaxKeySize
+#undef shaper_set_MaxKeyAmount
+#undef shaper_set_MaxShapeTypes
