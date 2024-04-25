@@ -210,7 +210,7 @@ struct shaper_t{
   struct ShapeType_t{
     /* 
       (RenderDataSize + DataSize + sizeof(ShapeList_t::nr_t)) * (MaxElementPerBlock_m1 + 1) +
-      sizeof(PerBlockData_t)
+      sizeof(BlockUnique_t)
     */
     BlockList_t BlockList;
 
@@ -365,7 +365,7 @@ struct shaper_t{
   #include <WITCH/BLL/BLL.h>
   BlockQueue_t BlockQueue;
 
-  struct PerBlockData_t{
+  struct BlockUnique_t{
     uint8_t filler;
   };
 
@@ -385,11 +385,11 @@ struct shaper_t{
     auto &s = ShapeList[ShapeID];
     return _GetData(s.sti, s.blid, s.ElementIndex);
   }
-  PerBlockData_t &GetPerBlockData(
+  BlockUnique_t &GetBlockUnique(
     ShapeTypeIndex_t sti,
     BlockID_t BlockID
   ){
-    return *(PerBlockData_t *)&_GetShapeID(
+    return *(BlockUnique_t *)&_GetShapeID(
       sti,
       BlockID,
       ShapeTypes[sti].MaxElementPerBlock()
@@ -516,7 +516,7 @@ struct shaper_t{
     ShapeTypes[sti].BlockList.Open(
       (
         (uintptr_t)bp.RenderDataSize + bp.DataSize + sizeof(ShapeList_t::nr_t)
-      ) * (bp.MaxElementPerBlock) + sizeof(PerBlockData_t)
+      ) * (bp.MaxElementPerBlock) + sizeof(BlockUnique_t)
     );
 
     ShapeTypes[sti].KeyPackIndex = kpi;
