@@ -308,7 +308,7 @@ struct shaper_t{
     void Close(const shaper_t *shaper){
       A_resize(tra, 0);
 
-      ::operator delete(base);
+      A_resize(base, 0);
     }
   }fid;
 
@@ -561,7 +561,7 @@ struct shaper_t{
 
         do{
           KeyTree_NodeReference_t out;
-          if(kiip + 1 != kp.KeyAmount){
+          if(kiip != kp.KeyAmount - 1){
             out = KeyTree_NewNode(&KeyTree);
           }
           else{

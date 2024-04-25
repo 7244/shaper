@@ -69,17 +69,19 @@ int main(){
     .DataSize = 0
   });
 
-  auto sid = shape_rectangle_add(
-    {
-      .blending = false,
-      .depth = 5
-    },{
-      .SizeX = 7,
-      .SizeY = 9
-    },{
+  for(uintptr_t i = 0; i < 2; i++){
+    auto sid = shape_rectangle_add(
+      {
+        .blending = false,
+        .depth = (uint16_t)i
+      },{
+        .SizeX = 7,
+        .SizeY = 9
+      },{
 
-    }
-  );
+      }
+    );
+  }
 
   shaper_t::KeyPackTraverse_t KeyPackTraverse;
   KeyPackTraverse.Init(shaper);
