@@ -550,6 +550,7 @@ struct shaper_t{
 
         bmnr = kp.bm.NewNode();
         bmbase = (bm_BaseData_t *)kp.bm[bmnr];
+        bmbase->sti = sti;
         bmbase->FirstBlockNR = st.BlockList.NewNode();
         bmbase->LastBlockNR = bmbase->FirstBlockNR;
         bmbase->LastBlockElementCount = 0;
