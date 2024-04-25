@@ -81,28 +81,38 @@ int main(){
     }
   );
 
-  shaper_t::KeyTraverse_t KeyTraverse;
-  KeyTraverse.Init(shaper);
-  while(KeyTraverse.Loop(shaper)){
-    uint32_t Key = 0;
-    if(KeyTraverse.KeyIndexInPack == 0){ Key = *(decltype(shape_rectangle_KeyPack_t::blending) *)KeyTraverse.KeyData; }
-    else if(KeyTraverse.KeyIndexInPack == 1){ Key = *(decltype(shape_rectangle_KeyPack_t::depth) *)KeyTraverse.KeyData; }
-    else if(KeyTraverse.KeyIndexInPack == 2){ Key = *(decltype(shape_rectangle_KeyPack_t::sti) *)KeyTraverse.KeyData; }
-    else{
-      __abort();
-      __unreachable();
-    }
-    printf("salsa+\n");
-    printf("%u\n", KeyTraverse.KeyIndexInPack);
-    printf("%u\n", Key);
-    printf("salsa-\n");
+  shaper_t::KeyPackTraverse_t KeyPackTraverse;
+  KeyPackTraverse.Init(shaper);
+  while(KeyPackTraverse.Loop(shaper)){
+    shaper_t::KeyTraverse_t KeyTraverse;
+    KeyTraverse.Init(shaper, KeyPackTraverse.kpi);
+    shaper_t::KeyTypeIndex_t kti;
+    while(KeyTraverse.Loop(shaper, kti)){
+      uint32_t Key = 0;
+      if(kti == kids::blending){
+        Key = *(decltype(shape_rectangle_KeyPack_t::blending) *)KeyTraverse.KeyData;
+      }
+      if(kti == kids::depth){
+        Key = *(decltype(shape_rectangle_KeyPack_t::depth) *)KeyTraverse.KeyData;
+      }
+      if(kti == kids::sti){
+        Key = *(decltype(shape_rectangle_KeyPack_t::sti) *)KeyTraverse.KeyData;
+      }
 
-    if(KeyTraverse.KeyIndexInPack == 2){
-      shaper_t::BlockTraverse_t BlockTraverse;
-      auto sti = BlockTraverse.Init(shaper, KeyTraverse.kpi(), KeyTraverse.bmid(shaper));
-      do{
-        printf("block came %u\n", sti);
-      }while(BlockTraverse.Loop(shaper));
+      printf("salsa+\n");
+      printf("%u\n", kti);
+      if(kti != (shaper_t::KeyTypeIndex_t)-1){
+        printf("%u\n", Key);
+      }
+      printf("salsa-\n");
+
+      if(kti == (shaper_t::KeyTypeIndex_t)-1){
+        shaper_t::BlockTraverse_t BlockTraverse;
+        auto sti = BlockTraverse.Init(shaper, KeyPackTraverse.kpi, KeyTraverse.bmid(shaper));
+        do{
+          printf("block came %u\n", sti);
+        }while(BlockTraverse.Loop(shaper));
+      }
     }
   }
 

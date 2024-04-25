@@ -513,18 +513,20 @@ struct shaper_t{
       }
     }
 
-    ShapeTypes[sti].BlockList.Close();
-    ShapeTypes[sti].BlockList.Open(
+    auto &st = ShapeTypes[sti];
+
+    st.BlockList.Close();
+    st.BlockList.Open(
       (
         (uintptr_t)bp.RenderDataSize + bp.DataSize + sizeof(ShapeList_t::nr_t)
       ) * (bp.MaxElementPerBlock) + sizeof(BlockUnique_t)
     );
 
-    ShapeTypes[sti].KeyPackIndex = kpi;
+    st.KeyPackIndex = kpi;
 
-    ShapeTypes[sti].MaxElementPerBlock_m1 = bp.MaxElementPerBlock - 1;
-    ShapeTypes[sti].RenderDataSize = bp.RenderDataSize;
-    ShapeTypes[sti].DataSize = bp.DataSize;
+    st.MaxElementPerBlock_m1 = bp.MaxElementPerBlock - 1;
+    st.RenderDataSize = bp.RenderDataSize;
+    st.DataSize = bp.DataSize;
   }
 
   ShapeID_t add(
@@ -602,6 +604,7 @@ struct shaper_t{
     gt_NoNewBlockManager:
 
     auto shapeid = ShapeList.NewNode();
+    ShapeList[shapeid].sti = sti;
     ShapeList[shapeid].bmid = bmnr;
     ShapeList[shapeid].blid = bmbase->LastBlockNR;
     ShapeList[shapeid].ElementIndex = bmbase->LastBlockElementCount;
@@ -710,85 +713,148 @@ struct shaper_t{
     kp->bm.Recycle(bmid);
   }
 
-  struct KeyTraverse_t{
-    KeyPackIndex_t KeyPackIndex;
-    KeyIndexInPack_t KeyIndexInPack;
-    KeyData_t *KeyData;
+  struct KeyPackTraverse_t{
+    KeyPackIndex_t kpi;
 
+    void Init(shaper_t &shaper){
+      kpi = (KeyPackIndex_t)-1;
+    }
+    bool Loop(shaper_t &shaper){
+      return ++kpi <= shaper.KeyPackAmount - 1;
+    }
+  };
+
+  struct KeyTraverse_t{
     private:
 
-    void InitNewKeyPack(shaper_t &shaper){
-      KeyIndexInPack = (KeyIndexInPack_t)-1;
-      KeyData = shaper.fid.KeyDatas - shaper.KeyTypes[
-        shaper.KeyPacks[KeyPackIndex].KeyIndexes[0]
-      ].Size;
-    }
+    uint8_t State;
+    KeyIndexInPack_t KeyIndexInPack;
+    KeyPack_t *kp;
+    KeyType_t *kt;
 
     public:
 
-    void Init(shaper_t &shaper){
-      if(!shaper.KeyPackAmount){
-        /* TODO doesnt work with no keypack */
-        __abort();
-      }
+    KeyData_t *KeyData;
 
-      KeyPackIndex = 0;
-      InitNewKeyPack(shaper);
+    void Init(
+      shaper_t &shaper,
+      const KeyPackIndex_t kpi
+    ){
+      State = 0;
+      kp = &shaper.KeyPacks[kpi];
     }
-    bool Loop(shaper_t &shaper){
-      gt_begin:
+    bool Loop(
+      shaper_t &shaper,
+      KeyTypeIndex_t &kti
+    ){
+      gt_reswitch:
 
-      auto &kp = shaper.KeyPacks[KeyPackIndex];
-      KeyType_t *kt;
+      switch(State){
+        case 0:{
+          KeyIndexInPack = 0;
+          KeyData = shaper.fid.KeyDatas;
 
-      if(++KeyIndexInPack == kp.KeyAmount){
-        --KeyIndexInPack;
-        kt = &shaper.KeyTypes[kp.KeyIndexes[KeyIndexInPack]];
-      }
-      else{
-        kt = &shaper.KeyTypes[kp.KeyIndexes[KeyIndexInPack]];
-        shaper.fid.tra[KeyIndexInPack].i0(
-          KeyIndexInPack == 0 ? kp.KeyTree_root : shaper.fid.tra[KeyIndexInPack - 1].Output,
-          kt->BitOrder
-        );
-        if(KeyIndexInPack == 0){ /* TODO if is badddddddddddddddd */
-          KeyData += kt->Size;
-        }
-        else{
-          KeyData += shaper.KeyTypes[kp.KeyIndexes[KeyIndexInPack - 1]].Size;
-        }
-      }
+          if(!kp->KeyAmount){
+            /* TODO bmid */
+            kti = (KeyTypeIndex_t)-1;
+            State = 1;
+            return true;
+          }
 
-      gt_tra:
+          kt = &shaper.KeyTypes[kp->KeyIndexes[0]];
 
-      bool r = shaper.fid.tra[KeyIndexInPack].t0(
-        &shaper.KeyTree,
-        kt->sibit(),
-        KeyData,
-        kt->BitOrder
-      );
+          shaper.fid.tra[0].i0(
+            kp->KeyTree_root,
+            kt->BitOrder
+          );
 
-      if(r == false){
-        if(KeyIndexInPack == 0){
-          if(KeyPackIndex == shaper.KeyPackAmount - 1){
+          if(shaper.fid.tra[0].t0(
+            &shaper.KeyTree,
+            kt->sibit(),
+            KeyData,
+            kt->BitOrder
+          ) == false){
             return false;
           }
-          KeyPackIndex++;
-          InitNewKeyPack(shaper);
-          goto gt_begin;
-        }
-        KeyIndexInPack--;
-        KeyData -= shaper.KeyTypes[kp.KeyIndexes[KeyIndexInPack]].Size;
-        goto gt_tra;
-      }
 
-      return true;
-    }
-    KeyPackIndex_t kpi(){
-      return KeyPackIndex;
+          kti = kp->KeyIndexes[0];
+
+          State = 2;
+
+          return true;
+        }
+        case 1:{
+          return false;
+        }
+        case 2:{
+          if(KeyIndexInPack == kp->KeyAmount - 1){
+            printf("state is now 3\n");
+            kti = (KeyTypeIndex_t)-1;
+            State = 3;
+            return true;
+          }
+          KeyData += shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]].Size;
+          KeyIndexInPack++;
+
+          kt = &shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]];
+
+          shaper.fid.tra[KeyIndexInPack].i0(
+            shaper.fid.tra[KeyIndexInPack - 1].Output,
+            kt->BitOrder
+          );
+
+          gt_retra:
+
+          if(shaper.fid.tra[KeyIndexInPack].t0(
+            &shaper.KeyTree,
+            kt->sibit(),
+            KeyData,
+            kt->BitOrder
+          ) == false){
+            State = 4;
+            goto gt_reswitch;
+          }
+
+          kti = kp->KeyIndexes[KeyIndexInPack];
+          printf("hello\n");
+
+          return true;
+        }
+        case 3:{
+          if(shaper.fid.tra[KeyIndexInPack].t0(
+            &shaper.KeyTree,
+            kt->sibit(),
+            KeyData,
+            kt->BitOrder
+          ) == false){
+            printf("state going to be 4\n");
+            State = 4;
+            goto gt_reswitch;
+          }
+          kti = kp->KeyIndexes[KeyIndexInPack];
+          State = 5;
+          return true;
+        }
+        case 4:{
+          if(KeyIndexInPack == 0){
+            return false;
+          }
+          KeyIndexInPack--;
+          KeyData -= shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]].Size;
+          kt = &shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]];
+          State = 2;
+          goto gt_retra;
+        }
+        case 5:{
+          kti = (KeyTypeIndex_t)-1;
+          State = 3;
+          return true;
+        }
+      }
+      __unreachable();
     }
     bmid_t bmid(shaper_t &shaper){
-      return *(bmid_t *)&shaper.fid.tra[KeyPackIndex].Output;
+      return *(bmid_t *)&shaper.fid.tra[KeyIndexInPack].Output;
     }
   };
 
