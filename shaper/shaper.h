@@ -788,7 +788,6 @@ struct shaper_t{
         }
         case 2:{
           if(KeyIndexInPack == kp->KeyAmount - 1){
-            printf("state is now 3\n");
             kti = (KeyTypeIndex_t)-1;
             State = 3;
             return true;
@@ -816,7 +815,6 @@ struct shaper_t{
           }
 
           kti = kp->KeyIndexes[KeyIndexInPack];
-          printf("hello\n");
 
           return true;
         }
@@ -827,7 +825,6 @@ struct shaper_t{
             KeyData,
             kt->BitOrder
           ) == false){
-            printf("state going to be 4\n");
             State = 4;
             goto gt_reswitch;
           }
