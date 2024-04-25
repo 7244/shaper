@@ -359,6 +359,7 @@ struct shaper_t{
   #define BLL_set_UseUninitialisedValues 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_NodeData \
+    ShapeTypeIndex_t sti; \
     bm_t::nr_t bmid; \
     BlockList_t::nr_t blid;
   #define BLL_set_type_node uint16_t
