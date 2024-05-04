@@ -469,7 +469,9 @@ struct shaper_t{
         ((uintptr_t)kpi + 1) * sizeof(KeyPack_t)
       );
       for(; KeyPackAmount < (KeyPackAmount_t)kpi + 1; KeyPackAmount++){ /* filler open */
+        KeyPacks[KeyPackAmount].KeyAmount = 0;
         KeyPacks[KeyPackAmount].KeyIndexes = NULL;
+        KeyPacks[KeyPackAmount].KeySizesSum = 0;
         KeyPacks[KeyPackAmount].KeyTree_root = KeyTree_NewNode(&KeyTree);
         KeyPacks[KeyPackAmount].bm.Open(1);
       }
