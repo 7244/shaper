@@ -206,7 +206,7 @@ struct shaper_t{
   #define BLL_set_UseUninitialisedValues 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_type_node blnr_t
-  #include <WITCH/BLL/BLL.h>
+  #include <BLL/BLL.h>
   struct ShapeType_t{
     /* 
       (RenderDataSize + DataSize + sizeof(ShapeList_t::nr_t)) * (MaxElementPerBlock_m1 + 1) +
@@ -241,7 +241,7 @@ struct shaper_t{
   #define BLL_set_UseUninitialisedValues 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_type_node ktbmnr_t
-  #include <WITCH/BLL/BLL.h>
+  #include <BLL/BLL.h>
   /* sizeof(bm_BaseData_t) + KeySizesSum */
 
   #pragma pack(push, 1)
@@ -261,7 +261,7 @@ struct shaper_t{
   #define BLL_set_AreWeInsideStruct 1
   // actually it needs to be uint24_t
   #define BLL_set_type_node uint32_t
-  #include <WITCH/BLL/BLL.h>
+  #include <BLL/BLL.h>
   ShapeList_t ShapeList;
 
   struct KeyPack_t{
@@ -363,7 +363,7 @@ struct shaper_t{
     bm_t::nr_t bmid; \
     BlockList_t::nr_t blid;
   #define BLL_set_type_node uint16_t
-  #include <WITCH/BLL/BLL.h>
+  #include <BLL/BLL.h>
   BlockQueue_t BlockQueue;
 
   struct BlockUnique_t{
