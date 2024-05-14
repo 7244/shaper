@@ -472,7 +472,7 @@ struct shaper_t{
         KeyPacks[KeyPackAmount].KeyAmount = 0;
         KeyPacks[KeyPackAmount].KeyIndexes = NULL;
         KeyPacks[KeyPackAmount].KeySizesSum = 0;
-        KeyPacks[KeyPackAmount].KeyTree_root = KeyTree_NewNode(&KeyTree);
+        KeyPacks[KeyPackAmount].KeyTree_root = KeyTree.NewNode();
         KeyPacks[KeyPackAmount].bm.Open(1);
       }
     }
@@ -564,7 +564,7 @@ struct shaper_t{
         do{
           KeyTree_NodeReference_t out;
           if(kiip != kp.KeyAmount - 1){
-            out = KeyTree_NewNode(&KeyTree);
+            out = KeyTree.NewNode();
           }
           else{
             out = *(KeyTree_NodeReference_t *)&bmnr;
@@ -702,13 +702,13 @@ struct shaper_t{
       auto *kt = &KeyTypes[kp->KeyIndexes[kiip]];
       KeyDataArray -= kt->Size;
       Key_t::r(&KeyTree, kt->sibit(), KeyDataArray, fid.knrs[kiip]);
-      if(KeyTree_inrhc(&KeyTree, fid.knrs[kiip])){
+      if(KeyTree.inrhc(fid.knrs[kiip])){
         break;
       }
       if(kiip == 0){
         break;
       }
-      KeyTree_Recycle(&KeyTree, fid.knrs[kiip]);
+      KeyTree.Recycle(fid.knrs[kiip]);
       kiip--;
     }
 
