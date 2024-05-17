@@ -450,6 +450,10 @@ struct shaper_t{
     KeyTypes[KeyTypeIndex].BitOrder = BitOrder;
   }
 
+  void SetKeyOrder(KeyTypeIndex_t KeyTypeIndex, KeyBitOrder_t BitOrder){
+    KeyTypes[KeyTypeIndex].BitOrder = BitOrder;
+  }
+
   /* fid struct requires different size for different key packs */
   /* because of it, fid gets closed and opened in this function */
   void AddKeyPack(
