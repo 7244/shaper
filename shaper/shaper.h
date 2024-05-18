@@ -38,6 +38,14 @@
   #define shaper_set_MaxShapeDataSize 0xffff
 #endif
 
+#ifndef shaper_set_RenderDataOffsetType
+  #define shaper_set_RenderDataOffsetType uint32_t
+#endif
+
+#ifndef shaper_set_fan
+  #define shaper_set_fan 0
+#endif
+
 struct shaper_t{
   public: /* -------------------------------------------------------------------------------- */
 
@@ -200,7 +208,6 @@ struct shaper_t{
   KeyTypeAmount_t KeyTypeAmount;
 
   #define BLL_set_prefix BlockList
-  #define BLL_set_Language 1
   #define BLL_set_Link 1
   #define BLL_set_NoSentinel
   #define BLL_set_AreWeInsideStruct 1
@@ -219,6 +226,23 @@ struct shaper_t{
     ShapeRenderDataSize_t RenderDataSize;
     ShapeDataSize_t DataSize;
 
+    #if shaper_set_fan
+    fan::opengl::core::vao_t m_vao;
+    fan::opengl::core::vbo_t m_vbo;
+    uint64_t vram_reserved;
+
+    struct init_t {
+      uint32_t index;
+      uint32_t size;
+      uint32_t type; // for example GL_FLOAT
+      uint32_t stride;
+      void* pointer;
+    };
+
+    std::vector<init_t> locations;
+    fan::opengl::context_t::shader_nr_t shader;
+    #endif
+
     MaxElementPerBlock_t MaxElementPerBlock(){
       return (MaxElementPerBlock_t)MaxElementPerBlock_m1 + 1;
     }
@@ -235,7 +259,6 @@ struct shaper_t{
   #pragma pack(pop)
 
   #define BLL_set_prefix bm
-  #define BLL_set_Language 1
   #define BLL_set_Link 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_type_node ktbmnr_t
@@ -252,7 +275,6 @@ struct shaper_t{
   #pragma pack(pop)
 
   #define BLL_set_prefix ShapeList
-  #define BLL_set_Language 1
   #define BLL_set_Link 0
   #define BLL_set_NodeDataType shape_t
   #define BLL_set_AreWeInsideStruct 1
@@ -350,8 +372,7 @@ struct shaper_t{
 
   public: /* -------------------------------------------------------------------------------- */
 
-  #define BLL_set_prefix BlockQueue
-  #define BLL_set_Language 1
+  #define BLL_set_prefix BlockEditQueue
   #define BLL_set_Link 1
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_NodeData \
@@ -360,10 +381,18 @@ struct shaper_t{
     BlockList_t::nr_t blid;
   #define BLL_set_type_node uint16_t
   #include <BLL/BLL.h>
-  BlockQueue_t BlockQueue;
+  BlockEditQueue_t BlockEditQueue;
 
   struct BlockUnique_t{
-    uint8_t filler;
+    MaxElementPerBlock_t MinEdit;
+    MaxElementPerBlock_t MaxEdit;
+    BlockEditQueue_t::nr_t beqid;
+
+    void clear() {
+      beqid.sic();
+      MinEdit = (decltype(MinEdit))-1;
+      MaxEdit = 0;
+    }
   };
 
   using BlockID_t = BlockList_t::nr_t;
@@ -410,7 +439,7 @@ struct shaper_t{
     ShapeTypes = NULL;
 
     KeyTree.Open();
-    BlockQueue.Open();
+    BlockEditQueue.Open();
     ShapeList.Open();
 
     fid.Open(this);
@@ -419,7 +448,7 @@ struct shaper_t{
     fid.Close(this);
 
     ShapeList.Close();
-    BlockQueue.Close();
+    BlockEditQueue.Close();
     KeyTree.Close();
 
     for(ShapeTypeIndex_t sti = 0; sti < ShapeTypeAmount; sti++){
@@ -727,14 +756,14 @@ struct shaper_t{
   };
 
   struct KeyTraverse_t{
-    private:
+    private: /* ----------------------------------------------------------------------------- */
 
     uint8_t State;
     KeyIndexInPack_t KeyIndexInPack;
     KeyPack_t *kp;
     KeyType_t *kt;
 
-    public:
+    public: /* ------------------------------------------------------------------------------ */
 
     KeyData_t *KeyData;
 
@@ -858,14 +887,14 @@ struct shaper_t{
   };
 
   struct BlockTraverse_t{
-    private:
+    private: /* ----------------------------------------------------------------------------- */
 
     ShapeTypeIndex_t sti;
     BlockList_t::nr_t From;
     BlockList_t::nr_t To;
     ElementIndexInBlock_t LastBlockElementCount;
 
-    public:
+    public: /* ------------------------------------------------------------------------------ */
 
     ShapeTypeIndex_t Init(shaper_t &shaper, KeyPackIndex_t kpi, bmid_t bmid){
       auto &kp = shaper.KeyPacks[kpi];
@@ -889,15 +918,18 @@ struct shaper_t{
       }
       return shaper.ShapeTypes[sti].MaxElementPerBlock();
     }
-    void *GetRenderData(shaper_t &shaper){
-      return shaper._GetRenderData(sti, From, 0);
-    }
-    void *GetData(shaper_t &shaper){
-      return shaper._GetData(sti, From, 0);
+    shaper_set_RenderDataOffsetType GetRenderDataOffset(shaper_t &shaper){
+      auto &st = shaper.ShapeTypes[sti];
+      return (shaper_set_RenderDataOffsetType)From.NRI *
+        st.MaxElementPerBlock() *
+        st.RenderDataSize;
     }
   };
 };
 
+#undef shaper_set_fan
+
+#undef shaper_set_RenderDataOffsetType
 #undef shaper_set_MaxShapeDataSize
 #undef shaper_set_MaxShapeRenderDataSize
 #undef shaper_set_MaxKeySizesSum
