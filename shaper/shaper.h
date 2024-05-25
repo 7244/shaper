@@ -209,7 +209,7 @@ struct shaper_t{
 
   #define BLL_set_prefix BlockList
   #define BLL_set_Link 1
-  #define BLL_set_NoSentinel
+  #define BLL_set_LinkSentinel 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_type_node blnr_t
   #include <BLL/BLL.h>
@@ -246,8 +246,18 @@ struct shaper_t{
     MaxElementPerBlock_t MaxElementPerBlock(){
       return (MaxElementPerBlock_t)MaxElementPerBlock_m1 + 1;
     }
-  }*ShapeTypes;
-  ShapeTypeAmount_t ShapeTypeAmount;
+  };
+  #define BLL_set_prefix ShapeTypes
+  #define BLL_set_Link 0
+  #define BLL_set_Recycle 0
+  #define BLL_set_IntegerNR 1
+  #define BLL_set_CPP_Node_ConstructDestruct 1
+  #define BLL_set_CPP_CopyAtPointerChange 1
+  #define BLL_set_AreWeInsideStruct 1
+  #define BLL_set_NodeDataType ShapeType_t
+  #define BLL_set_type_node ShapeTypeAmount_t
+  #include <BLL/BLL.h>
+  ShapeTypes_t ShapeTypes;
 
   #pragma pack(push, 1)
     struct bm_BaseData_t{
@@ -435,8 +445,7 @@ struct shaper_t{
     KeyPackAmount = 0;
     KeyPacks = NULL;
 
-    ShapeTypeAmount = 0;
-    ShapeTypes = NULL;
+    ShapeTypes.Open();
 
     KeyTree.Open();
     BlockEditQueue.Open();
@@ -451,10 +460,10 @@ struct shaper_t{
     BlockEditQueue.Close();
     KeyTree.Close();
 
-    for(ShapeTypeIndex_t sti = 0; sti < ShapeTypeAmount; sti++){
-      ShapeTypes[sti].BlockList.Close();
+    for(auto &st : ShapeTypes){
+      st.BlockList.Close();
     }
-    A_resize(ShapeTypes, 0);
+    ShapeTypes.Close();
 
     for(KeyPackIndex_t kpi = 0; kpi < KeyPackAmount; kpi++){
       A_resize(KeyPacks[kpi].KeyIndexes, 0);
@@ -534,14 +543,11 @@ struct shaper_t{
     KeyPackIndex_t kpi,
     const BlockProperties_t bp
   ){
-    if(sti >= ShapeTypeAmount){
-      ShapeTypes = (ShapeType_t *)A_resize(
-        ShapeTypes,
-        ((uintptr_t)sti + 1) * sizeof(ShapeType_t)
-      );
-      for(; ShapeTypeAmount < (ShapeTypeAmount_t)sti + 1; ShapeTypeAmount++){ /* filler open */
-        ShapeTypes[ShapeTypeAmount].BlockList.Open(1);
-      }
+    while(sti >= ShapeTypes.Usage()){
+      auto &st = ShapeTypes[ShapeTypes.NewNode()];
+
+      /* filler init */
+      st.BlockList.Open(1);
     }
 
     auto &st = ShapeTypes[sti];
