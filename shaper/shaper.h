@@ -269,6 +269,14 @@ struct shaper_t{
   #include <BLL/BLL.h>
   ShapeTypes_t ShapeTypes;
 
+  public:
+
+  ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
+    return ShapeTypes[sti].RenderDataSize;
+  }
+
+  private:
+
   #pragma pack(push, 1)
     struct bm_BaseData_t{
       ShapeTypeAmount_t sti;
@@ -390,8 +398,6 @@ struct shaper_t{
     )[sizeof(ShapeList_t::nr_t) * ElementIndex];
   }
 
-  public: /* -------------------------------------------------------------------------------- */
-
   #define BLL_set_prefix BlockEditQueue
   #define BLL_set_Link 1
   #define BLL_set_AreWeInsideStruct 1
@@ -421,6 +427,8 @@ struct shaper_t{
       }
     }
   };
+
+  public: /* -------------------------------------------------------------------------------- */
 
   using BlockID_t = BlockList_t::nr_t;
   using bmid_t = bm_t::nr_t;
@@ -715,7 +723,7 @@ struct shaper_t{
       fan::opengl::core::edit_glbuffer(
         gloco->get_context(),
         st.m_vbo.m_buffer,
-        _GetRenderData(ShapeType, traverse.nr, 0),
+        _GetRenderData(sti, traverse.nr, 0),
         GetRenderDataOffset(sti, traverse.nr),
         st.RenderDataSize * st.MaxElementPerBlock(),
         fan::opengl::GL_ARRAY_BUFFER
@@ -731,13 +739,13 @@ struct shaper_t{
     st.m_vbo.bind(gloco->get_context());
     fan::opengl::core::write_glbuffer(
       gloco->get_context(),
-      block.m_vbo.m_buffer,
+      st.m_vbo.m_buffer,
       0,
       New * st.RenderDataSize * st.MaxElementPerBlock(),
       fan::opengl::GL_DYNAMIC_DRAW,
       fan::opengl::GL_ARRAY_BUFFER
     );
-    RenderDataReset(sti);
+    _RenderDataReset(sti);
     #endif
   }
 
