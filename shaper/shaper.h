@@ -432,6 +432,13 @@ struct shaper_t{
   ShapeTypeIndex_t GetSTI(ShapeID_t ShapeID){
     return ShapeList[ShapeID].sti;
   }
+  BlockID_t GetBLID(ShapeID_t ShapeID){
+    return ShapeList[ShapeID].blid;
+  }
+  ElementIndexInBlock_t GetElementIndex(ShapeID_t ShapeID){
+    return ShapeList[ShapeID].ElementIndex;
+  }
+
   KeyPackIndex_t GetKPI(ShapeTypeIndex_t sti){
     return ShapeTypes[sti].KeyPackIndex;
   }
