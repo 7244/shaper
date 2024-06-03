@@ -214,8 +214,7 @@ struct shaper_t{
   #define BLL_set_prefix BlockList
   #define BLL_set_BufferUpdateInfo \
     auto st = OFFSETLESS(bll, ShapeType_t, BlockList); \
-    auto shaper = (shaper_t *)(st - st->sti); \
-    shaper->_BlockListBufferChange(st->sti, New);
+    st->shaper->_BlockListBufferChange(st->sti, New);
   #define BLL_set_Link 1
   #define BLL_set_LinkSentinel 0
   #define BLL_set_AreWeInsideStruct 1
@@ -223,6 +222,7 @@ struct shaper_t{
   #include <BLL/BLL.h>
   struct ShapeType_t{
     /* this will be used from BlockList callbacks with offsetless */
+    shaper_t *shaper;
     ShapeTypeAmount_t sti;
 
     /* 
@@ -624,6 +624,7 @@ struct shaper_t{
       auto &st = ShapeTypes[csti];
 
       /* filler init */
+      st.shaper = this;
       st.sti = csti;
       st.BlockList.Open(1);
     }
