@@ -269,14 +269,6 @@ struct shaper_t{
   #include <BLL/BLL.h>
   ShapeTypes_t ShapeTypes;
 
-  public:
-
-  ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
-    return ShapeTypes[sti].RenderDataSize;
-  }
-
-  private:
-
   #pragma pack(push, 1)
     struct bm_BaseData_t{
       ShapeTypeAmount_t sti;
@@ -371,8 +363,9 @@ struct shaper_t{
     BlockList_t::nr_t blid,
     uintptr_t ElementIndex
   ){
-    return &((ShapeRenderData_t *)ShapeTypes[sti].BlockList[blid])[
-      (uintptr_t)ShapeTypes[sti].RenderDataSize * ElementIndex
+    auto &st = ShapeTypes[sti];
+    return &((ShapeRenderData_t *)st.BlockList[blid])[
+      (uintptr_t)st.RenderDataSize * ElementIndex
     ];
   }
   ShapeData_t *_GetData(
@@ -380,21 +373,23 @@ struct shaper_t{
     BlockList_t::nr_t blid,
     uintptr_t ElementIndex
   ){
+    auto &st = ShapeTypes[sti];
     return &_GetRenderData(
       sti,
       blid,
-      ShapeTypes[sti].MaxElementPerBlock()
-    )[(uintptr_t)ShapeTypes[sti].DataSize * ElementIndex];
+      st.MaxElementPerBlock()
+    )[(uintptr_t)st.DataSize * ElementIndex];
   }
   ShapeList_t::nr_t &_GetShapeID(
     ShapeTypeIndex_t sti,
     BlockList_t::nr_t blid,
     uintptr_t ElementIndex
   ){
+    auto &st = ShapeTypes[sti];
     return *(ShapeList_t::nr_t *)&_GetData(
       sti,
       blid,
-      ShapeTypes[sti].MaxElementPerBlock()
+      st.MaxElementPerBlock()
     )[sizeof(ShapeList_t::nr_t) * ElementIndex];
   }
 
@@ -434,6 +429,20 @@ struct shaper_t{
   using bmid_t = bm_t::nr_t;
   using ShapeID_t = ShapeList_t::nr_t;
 
+  ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
+    return ShapeTypes[sti].RenderDataSize;
+  }
+  ShapeDataSize_t GetDataSize(ShapeTypeIndex_t sti){
+    return ShapeTypes[sti].DataSize;
+  }
+
+  void WriteKeys(ShapeID_t ShapeID, void *dst){
+    auto &s = ShapeList[ShapeID];
+    auto &st = ShapeTypes[s.sti];
+    auto &kp = KeyPacks[st.KeyPackIndex];
+    bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[s.bmid];
+    __MemoryCopy(&bmbase[1], dst, kp.KeySizesSum);
+  }
   ShapeRenderData_t *GetRenderData(
     ShapeID_t ShapeID
   ){
