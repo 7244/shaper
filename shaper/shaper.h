@@ -445,6 +445,13 @@ struct shaper_t{
     return ShapeTypes[sti].DataSize;
   }
 
+  void *GetKeys(ShapeID_t ShapeID){
+    auto &s = ShapeList[ShapeID];
+    auto &st = ShapeTypes[s.sti];
+    auto &kp = KeyPacks[st.KeyPackIndex];
+    bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[s.bmid];
+    return &bmbase[1];
+  }
   void WriteKeys(ShapeID_t ShapeID, void *dst){
     auto &s = ShapeList[ShapeID];
     auto &st = ShapeTypes[s.sti];
@@ -452,6 +459,7 @@ struct shaper_t{
     bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[s.bmid];
     __MemoryCopy(&bmbase[1], dst, kp.KeySizesSum);
   }
+
   ShapeRenderData_t *GetRenderData(
     ShapeID_t ShapeID
   ){
