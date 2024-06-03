@@ -432,8 +432,8 @@ struct shaper_t{
   ShapeTypeIndex_t GetSTI(ShapeID_t ShapeID){
     return ShapeList[ShapeID].sti;
   }
-  KeyPackIndex_t GetKPI(ShapeID_t ShapeID){
-    return ShapeList[ShapeID].KeyPackIndex;
+  KeyPackIndex_t GetKPI(ShapeTypeIndex_t sti){
+    return ShapeTypes[sti].KeyPackIndex;
   }
 
   KeySizesSumInBytes_t GetKeySizesSum(ShapeTypeIndex_t sti){
