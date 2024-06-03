@@ -429,6 +429,15 @@ struct shaper_t{
   using bmid_t = bm_t::nr_t;
   using ShapeID_t = ShapeList_t::nr_t;
 
+  ShapeTypeIndex_t GetSTI(ShapeID_t ShapeID){
+    return ShapeList[ShapeID].sti;
+  }
+
+  KeySizesSumInBytes_t GetKeySizesSum(ShapeTypeIndex_t sti){
+    auto &st = ShapeTypes[sti];
+    auto &kp = KeyPacks[st.KeyPackIndex];
+    return kp.KeySizesSum;
+  }
   ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
     return ShapeTypes[sti].RenderDataSize;
   }
