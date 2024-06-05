@@ -1171,6 +1171,12 @@ struct shaper_t{
     shaper_set_RenderDataOffsetType GetRenderDataOffset(shaper_t &shaper){
       return shaper.GetRenderDataOffset(sti, From);
     }
+    void *GetRenderData(shaper_t &shaper){
+      return shaper._GetRenderData(sti, From, 0);
+    }
+    void *GetData(shaper_t &shaper){
+      return shaper._GetData(sti, From, 0);
+    }
   };
 };
 
