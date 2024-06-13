@@ -2,7 +2,7 @@ OUTPUT = a.exe
 
 LINK =
 INCLUDE = 
-CS = -Wall -Wextra -std=c++2a -Wno-unused-parameter -Wno-sign-compare
+CS = -Wall -Wextra -std=c++2a -Wno-unused-parameter -Wno-sign-compare -Wno-unused-value -Wno-shift-op-parentheses
 CS += -Werror=vla
 
 debug:

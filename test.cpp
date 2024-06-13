@@ -5,27 +5,22 @@
 #include "shaper/shaper.h"
 shaper_t shaper;
 
+using KeyType_blending = uint8_t;
+using KeyType_depth = uint16_t;
+using KeyType_sti = shaper_t::KeyTypeIndex_t;
+
 /* key ids */
-struct kids{enum{
-  sti,
+struct kids{enum : shaper_t::KeyTypeIndex_t{
   blending,
-  depth
+  depth,
+  sti
 };};
 
-struct kp{enum{
-  common
-};};
-
-struct shapes{enum{
+struct shapes{enum : shaper_t::ShapeTypeIndex_t{
   rectangle
 };};
 
 #pragma pack(push, 1)
-  struct shape_rectangle_KeyPack_t{
-    uint8_t blending;
-    uint16_t depth;
-    shaper_t::ShapeTypeIndex_t sti = shapes::rectangle;
-  };
   struct shape_rectangle_RenderData_t{
     f32_t SizeX;
     f32_t SizeY;
@@ -36,87 +31,96 @@ struct shapes{enum{
   };
 #pragma pack(pop)
 
-shaper_t::ShapeID_t shape_rectangle_add(
-  const shape_rectangle_KeyPack_t KeyPack,
-  const shape_rectangle_RenderData_t RenderData,
-  const shape_rectangle_Data_t Data
+template <uintptr_t s>
+struct structarr_t {
+  uint8_t p[s];
+  uint8_t &operator[](uintptr_t i){
+    return p[i];
+  }
+};
+template<
+  typename... Ts,
+  uintptr_t s = (sizeof(Ts) + ...)
+>constexpr shaper_t::ShapeID_t shape_add(
+  shaper_t::ShapeTypeIndex_t sti,
+  auto rd,
+  auto d,
+  Ts... args
 ){
-  return shaper.add(shapes::rectangle, &KeyPack, &RenderData, &Data);
+  structarr_t<s> a;
+  uintptr_t i = 0;
+  ([&](auto arg) {
+    __MemoryCopy(&arg, &a[i], sizeof(arg));
+    i += sizeof(arg);
+  }(args), ...);
+  constexpr uintptr_t count = (!!(sizeof(Ts) + 1) + ...);
+  static_assert(count % 2 == 0);
+  uintptr_t LastKeyOffset = s - (sizeof(Ts), ...) - 1;
+  return shaper.add(sti, &a, s, LastKeyOffset, &rd, &d);
 }
 
 int main(){
   shaper.Open();
 
-  shaper.AddKey(kids::sti, sizeof(shaper_t::ShapeTypeIndex_t), shaper_t::KeyBitOrderAny);
-
-  shaper.AddKey(kids::blending, sizeof(uint8_t), shaper_t::KeyBitOrderLow);
+  shaper.AddKey(kids::blending, sizeof(KeyType_blending), shaper_t::KeyBitOrderLow);
 
   /* changed with blending */
-  shaper.AddKey(kids::depth, sizeof(uint16_t), shaper_t::KeyBitOrderLow);
+  shaper.AddKey(kids::depth, sizeof(KeyType_depth), shaper_t::KeyBitOrderLow);
 
-  {
-    shaper_t::KeyTypeIndex_t ktia[] = {
-      kids::blending,
-      kids::depth,
-      kids::sti
-    };
-    shaper.AddKeyPack(kp::common, sizeof(ktia) / sizeof(ktia[0]), ktia);
-  }
+  shaper.AddKey(kids::sti, sizeof(KeyType_sti), shaper_t::KeyBitOrderAny);
 
-  shaper.AddShapeType(shapes::rectangle, kp::common, {
+  shaper.AddShapeType(shapes::rectangle, {
     .MaxElementPerBlock = 0xff,
     .RenderDataSize = sizeof(shape_rectangle_RenderData_t),
     .DataSize = 0
   });
 
-  for(uintptr_t i = 0; i < 2; i++){
-    auto sid = shape_rectangle_add(
-      {
-        .blending = false,
-        .depth = (uint16_t)i
-      },{
+  for(uint32_t i = 0; i < 1000; i++){
+    auto sid = shape_add(shapes::rectangle,
+      shape_rectangle_RenderData_t{
         .SizeX = 7,
         .SizeY = 9
-      },{
-
-      }
+      },
+      shape_rectangle_Data_t{},
+      kids::blending, (KeyType_blending)1,
+      kids::depth, (KeyType_depth)5,
+      kids::sti, shapes::rectangle
     );
   }
+  //shaper.remove(sid);
 
-  shaper_t::KeyPackTraverse_t KeyPackTraverse;
-  KeyPackTraverse.Init(shaper);
-  while(KeyPackTraverse.Loop(shaper)){
-    shaper_t::KeyTraverse_t KeyTraverse;
-    KeyTraverse.Init(shaper, KeyPackTraverse.kpi);
-    shaper_t::KeyTypeIndex_t kti;
-    while(KeyTraverse.Loop(shaper, kti)){
-      uint32_t Key = 0;
-      if(kti == kids::blending){
-        Key = *(decltype(shape_rectangle_KeyPack_t::blending) *)KeyTraverse.KeyData;
-      }
-      if(kti == kids::depth){
-        Key = *(decltype(shape_rectangle_KeyPack_t::depth) *)KeyTraverse.KeyData;
-      }
-      if(kti == kids::sti){
-        Key = *(decltype(shape_rectangle_KeyPack_t::sti) *)KeyTraverse.KeyData;
-      }
+  shaper_t::KeyTraverse_t kt;
+  kt.Init(shaper);
+  while(kt.Loop(shaper)){
+    shaper_t::KeyTypeIndex_t kti = kt.kti(shaper);
+    uint32_t Key = 0;
+    if(kti == kids::blending){
+      Key = *(KeyType_blending *)kt.kd();
+    }
+    if(kti == kids::depth){
+      Key = *(KeyType_depth *)kt.kd();
+    }
+    if(kti == kids::sti){
+      Key = *(KeyType_sti *)kt.kd();
+    }
 
-      printf("salsa+\n");
-      printf("%u\n", kti);
-      if(kti != (shaper_t::KeyTypeIndex_t)-1){
-        printf("%u\n", Key);
-      }
-      printf("salsa-\n");
+    printf("salsa+\n");
+    printf("%u\n", kti);
+    if(kti != (shaper_t::KeyTypeIndex_t)-1){
+      printf("%u\n", Key);
+    }
+    printf("salsa-\n");
 
-      if(kti == (shaper_t::KeyTypeIndex_t)-1){
-        shaper_t::BlockTraverse_t BlockTraverse;
-        auto sti = BlockTraverse.Init(shaper, KeyPackTraverse.kpi, KeyTraverse.bmid(shaper));
-        do{
-          printf("block came %u\n", sti);
-        }while(BlockTraverse.Loop(shaper));
-      }
+    if(kt.isbm){
+      shaper_t::BlockTraverse_t BlockTraverse;
+      auto sti = BlockTraverse.Init(shaper, kt.bmid());
+      do{
+        printf("block came %u\n", sti);
+      }while(BlockTraverse.Loop(shaper));
     }
   }
+
+  shaper.Close();
 
   return 0;
 }

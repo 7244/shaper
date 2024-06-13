@@ -2,10 +2,6 @@
   #define shaper_set_MaxShapeTypes 0x80
 #endif
 
-#ifndef shaper_set_MaxKeyInPack
-  #define shaper_set_MaxKeyInPack 0x80
-#endif
-
 /* in bytes */
 #ifndef shaper_set_MaxKeySize
   #define shaper_set_MaxKeySize 8
@@ -13,10 +9,6 @@
 
 #ifndef shaper_set_MaxKeyType
   #define shaper_set_MaxKeyType 0xff
-#endif
-
-#ifndef shaper_set_MaxKeyPackAmount
-  #define shaper_set_MaxKeyPackAmount 0xff
 #endif
 
 #ifdef shaper_set_MaxElementPerBlock
@@ -27,8 +19,12 @@
 #endif
 
 /* in bytes */
-#ifdef shaper_set_MaxKeySizesSum
-  #define shaper_set_MaxKeySizesSum 0xff
+#ifndef shaper_set_MaxKeySizesSum
+  #define shaper_set_MaxKeySizesSum 0x80
+#endif
+
+#ifndef shaper_set_MaxKeyAmountInBM
+  #define shaper_set_MaxKeyAmountInBM 0x3f
 #endif
 
 #ifndef shaper_set_MaxShapeRenderDataSize
@@ -72,17 +68,6 @@ struct shaper_t{
     #error ?
   #endif
 
-  #if shaper_set_MaxKeyInPack <= 0xff
-    typedef uint8_t KeyAmountInPack_t;
-  #else
-    #error ?
-  #endif
-  #if shaper_set_MaxKeyInPack <= 0x100
-    typedef uint8_t KeyIndexInPack_t;
-  #else
-    #error ?
-  #endif
-
   #if shaper_set_MaxMaxElementPerBlock <= 0xff
     typedef uint8_t MaxElementPerBlock_t;
   #elif shaper_set_MaxMaxElementPerBlock <= 0xffff
@@ -111,6 +96,8 @@ struct shaper_t{
   #endif
   #if shaper_set_MaxKeySize * 8 <= 0xff
     typedef uint8_t KeySizeInBits_t;
+  #elif shaper_set_MaxKeySize * 8 <= 0xffff
+    typedef uint16_t KeySizeInBits_t;
   #else
     #error ?
   #endif
@@ -126,19 +113,37 @@ struct shaper_t{
     #error ?
   #endif
 
-  #if shaper_set_MaxKeyPackAmount <= 0xff
-    typedef uint8_t KeyPackAmount_t;
-  #else
-    #error ?
-  #endif
-  #if shaper_set_MaxKeyPackAmount <= 0x100
-    typedef uint8_t KeyPackIndex_t;
+  #if shaper_set_MaxKeySizesSum <= 0xff
+    typedef uint8_t KeySizesSumInBytes_t;
   #else
     #error ?
   #endif
 
-  #if shaper_set_MaxKeySizesSum <= 0xff
-    typedef uint8_t KeySizesSumInBytes_t;
+  /* TOOD that 1 needs to be KeyTypeIndex_t */
+  #if shaper_set_MaxKeySizesSum + shaper_set_MaxKeyAmountInBM * 1 <= 0xff
+    typedef uint8_t KeyPackSize_t;
+  #else
+    #error ?
+  #endif
+
+  #if shaper_set_MaxKeyAmountInBM <= 0xff
+    typedef uint8_t KeyIndexInBM_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxKeyAmountInBM <= 0x100
+    typedef uint8_t KeyAmountInBM_t;
+  #else
+    #error ?
+  #endif
+  /* they are internal. used for point key's itself and value of it */
+  #if shaper_set_MaxKeyAmountInBM * 2 <= 0xff
+    typedef uint8_t _KeyIndexInBM_t;
+  #else
+    #error ?
+  #endif
+  #if shaper_set_MaxKeyAmountInBM * 2 <= 0x100
+    typedef uint8_t _KeyAmountInBM_t;
   #else
     #error ?
   #endif
@@ -176,7 +181,7 @@ struct shaper_t{
     total element a ShapeType can have is =
       (pow(2, (sizeof(blid_t) * 8)) * MaxElementPerBlock)
   */
-  typedef uint16_t blid_t;
+  typedef uint16_t _blid_t;
 
   #define BDBT_set_prefix KeyTree
   #define BDBT_set_type_node ktbmnr_t
@@ -189,6 +194,7 @@ struct shaper_t{
   #include <BDBT/BDBT.h>
   KeyTree_t KeyTree;
   typedef KeyTree_Key_t Key_t;
+  KeyTree_NodeReference_t KeyTree_root;
 
   public: /* -------------------------------------------------------------------------------- */
 
@@ -218,7 +224,7 @@ struct shaper_t{
   #define BLL_set_Link 1
   #define BLL_set_LinkSentinel 0
   #define BLL_set_AreWeInsideStruct 1
-  #define BLL_set_type_node blid_t
+  #define BLL_set_type_node _blid_t
   #include <BLL/BLL.h>
   struct ShapeType_t{
     /* this will be used from BlockList callbacks with offsetless */
@@ -230,8 +236,6 @@ struct shaper_t{
       sizeof(BlockUnique_t)
     */
     BlockList_t BlockList;
-
-    KeyPackIndex_t KeyPackIndex;
 
     ElementIndexInBlock_t MaxElementPerBlock_m1; /* minus 1, (p.MaxElementPerBlock[n] - 1) */
     ShapeRenderDataSize_t RenderDataSize;
@@ -269,26 +273,28 @@ struct shaper_t{
   #include <BLL/BLL.h>
   ShapeTypes_t ShapeTypes;
 
-  #pragma pack(push, 1)
-    struct bm_BaseData_t{
-      ShapeTypeAmount_t sti;
-      BlockList_NodeReference_t FirstBlockNR;
-      BlockList_NodeReference_t LastBlockNR;
-      ElementIndexInBlock_t LastBlockElementCount;
-    };
-  #pragma pack(pop)
-
-  #define BLL_set_prefix bm
+  #define BLL_set_prefix BlockManager
+  #define BLL_set_CPP_Node_ConstructDestruct 1
   #define BLL_set_Link 0
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_type_node ktbmnr_t
+  #define BLL_set_NodeData \
+    KeyPackSize_t KeyPackSize; \
+    uint8_t *KeyPack; \
+    ShapeTypeAmount_t sti; \
+    BlockList_NodeReference_t FirstBlockNR; \
+    BlockList_NodeReference_t LastBlockNR; \
+    ElementIndexInBlock_t LastBlockElementCount; \
+    ~BlockManager_NodeData_t(){ \
+      A_resize(KeyPack, 0); \
+    }
   #include <BLL/BLL.h>
-  /* sizeof(bm_BaseData_t) + KeySizesSum */
+  BlockManager_t BlockManager;
 
   #pragma pack(push, 1)
     struct shape_t{
       ShapeTypeIndex_t sti;
-      bm_t::nr_t bmid;
+      BlockManager_t::nr_t bmid;
       BlockList_t::nr_t blid;
       ElementIndexInBlock_t ElementIndex;
     };
@@ -302,54 +308,6 @@ struct shaper_t{
   #define BLL_set_type_node uint32_t
   #include <BLL/BLL.h>
   ShapeList_t ShapeList;
-
-  struct KeyPack_t{
-    KeyAmountInPack_t KeyAmount;
-    KeyTypeIndex_t *KeyIndexes;
-    KeySizesSumInBytes_t KeySizesSum;
-    KeyTree_NodeReference_t KeyTree_root;
-    bm_t bm;
-  };
-  KeyPack_t *KeyPacks;
-  KeyPackAmount_t KeyPackAmount;
-
-  /* function internal datas */
-  struct fid_t{
-    union{
-      void *base;
-      /* used in remove */
-      KeyTree_NodeReference_t *knrs;
-      /* used in traverse for store keys */
-      KeyData_t *KeyDatas;
-    };
-
-    Key_t::Traverse_t *tra;
-
-    void Open(const shaper_t *shaper){
-      KeyAmountInPack_t MaxKeyAmount = 0;
-      KeySizesSumInBytes_t MaxKeySizesSum = 0;
-      for(KeyPackIndex_t kpi = 0; kpi < shaper->KeyPackAmount; kpi++){
-        if(MaxKeyAmount < shaper->KeyPacks[kpi].KeyAmount){
-          MaxKeyAmount = shaper->KeyPacks[kpi].KeyAmount;
-        }
-        if(MaxKeySizesSum < shaper->KeyPacks[kpi].KeySizesSum){
-          MaxKeySizesSum = shaper->KeyPacks[kpi].KeySizesSum;
-        }
-      }
-      base = A_resize(NULL,
-        sizeof(KeyTree_NodeReference_t) * MaxKeyAmount > MaxKeySizesSum ? 
-        sizeof(KeyTree_NodeReference_t) * MaxKeyAmount :
-        MaxKeySizesSum
-      );
-
-      tra = (Key_t::Traverse_t *)A_resize(NULL, MaxKeyAmount * sizeof(Key_t::Traverse_t));
-    }
-    void Close(const shaper_t *shaper){
-      A_resize(tra, 0);
-
-      A_resize(base, 0);
-    }
-  }fid;
 
   /*
     block data format is this. %30
@@ -404,8 +362,8 @@ struct shaper_t{
   BlockEditQueue_t BlockEditQueue;
 
   struct BlockUnique_t{
-    MaxElementPerBlock_t MinEdit;
-    MaxElementPerBlock_t MaxEdit;
+    shaper_set_RenderDataOffsetType MinEdit;
+    shaper_set_RenderDataOffsetType MaxEdit;
     BlockEditQueue_t::nr_t beid;
 
     void clear() {
@@ -425,28 +383,24 @@ struct shaper_t{
 
   public: /* -------------------------------------------------------------------------------- */
 
-  using BlockID_t = BlockList_t::nr_t;
-  using bmid_t = bm_t::nr_t;
+  using blid_t = BlockList_t::nr_t;
+  using bmid_t = BlockManager_t::nr_t;
   using ShapeID_t = ShapeList_t::nr_t;
 
   ShapeTypeIndex_t GetSTI(ShapeID_t ShapeID){
     return ShapeList[ShapeID].sti;
   }
-  BlockID_t GetBLID(ShapeID_t ShapeID){
+  blid_t GetBLID(ShapeID_t ShapeID){
     return ShapeList[ShapeID].blid;
   }
   ElementIndexInBlock_t GetElementIndex(ShapeID_t ShapeID){
     return ShapeList[ShapeID].ElementIndex;
   }
 
-  KeyPackIndex_t GetKPI(ShapeTypeIndex_t sti){
-    return ShapeTypes[sti].KeyPackIndex;
-  }
-
-  KeySizesSumInBytes_t GetKeySizesSum(ShapeTypeIndex_t sti){
-    auto &st = ShapeTypes[sti];
-    auto &kp = KeyPacks[st.KeyPackIndex];
-    return kp.KeySizesSum;
+  KeyPackSize_t GetKeyPackSize(ShapeID_t sid){
+    auto &s = ShapeList[sid];
+    auto &bm = BlockManager[s.bmid];
+    return bm.KeyPackSize;
   }
   ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
     return ShapeTypes[sti].RenderDataSize;
@@ -455,19 +409,15 @@ struct shaper_t{
     return ShapeTypes[sti].DataSize;
   }
 
-  void *GetKeys(ShapeID_t ShapeID){
+  uint8_t *GetKeys(ShapeID_t ShapeID){
     auto &s = ShapeList[ShapeID];
-    auto &st = ShapeTypes[s.sti];
-    auto &kp = KeyPacks[st.KeyPackIndex];
-    bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[s.bmid];
-    return &bmbase[1];
+    auto &bm = BlockManager[s.bmid];
+    return bm.KeyPack;
   }
   void WriteKeys(ShapeID_t ShapeID, void *dst){
     auto &s = ShapeList[ShapeID];
-    auto &st = ShapeTypes[s.sti];
-    auto &kp = KeyPacks[st.KeyPackIndex];
-    bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[s.bmid];
-    __MemoryCopy(&bmbase[1], dst, kp.KeySizesSum);
+    auto &bm = BlockManager[s.bmid];
+    __MemoryCopy(&bm.KeyPack, dst, bm.KeyPackSize);
   }
 
   ShapeRenderData_t *GetRenderData(
@@ -484,7 +434,7 @@ struct shaper_t{
   }
   BlockUnique_t &GetBlockUnique(
     ShapeTypeIndex_t sti,
-    BlockID_t BlockID
+    blid_t BlockID
   ){
     return *(BlockUnique_t *)&_GetShapeID(
       sti,
@@ -495,7 +445,7 @@ struct shaper_t{
 
   shaper_set_RenderDataOffsetType GetRenderDataOffset(
     ShapeTypeIndex_t sti,
-    BlockID_t blid
+    blid_t blid
   ){
     auto &st = ShapeTypes[sti];
     return (shaper_set_RenderDataOffsetType)blid.gint() *
@@ -518,34 +468,24 @@ struct shaper_t{
     KeyTypeAmount = 0;
     KeyTypes = NULL;
 
-    KeyPackAmount = 0;
-    KeyPacks = NULL;
-
     ShapeTypes.Open();
 
     KeyTree.Open();
+    KeyTree_root = KeyTree.NewNode();
+    BlockManager.Open();
     BlockEditQueue.Open();
     ShapeList.Open();
-
-    fid.Open(this);
   }
   void Close(){
-    fid.Close(this);
-
     ShapeList.Close();
     BlockEditQueue.Close();
+    BlockManager.Close();
     KeyTree.Close();
 
     for(auto &st : ShapeTypes){
       st.BlockList.Close();
     }
     ShapeTypes.Close();
-
-    for(KeyPackIndex_t kpi = 0; kpi < KeyPackAmount; kpi++){
-      A_resize(KeyPacks[kpi].KeyIndexes, 0);
-      KeyPacks[kpi].bm.Close();
-    }
-    A_resize(KeyPacks, 0);
 
     A_resize(KeyTypes, 0);
   }
@@ -568,55 +508,8 @@ struct shaper_t{
     KeyTypes[KeyTypeIndex].BitOrder = BitOrder;
   }
 
-  /* fid struct requires different size for different key packs */
-  /* because of it, fid gets closed and opened in this function */
-  void AddKeyPack(
-    KeyPackIndex_t kpi,
-    KeyAmountInPack_t KeyAmount,
-    KeyTypeIndex_t *KeyIndexes
-  ){
-    fid.Close(this);
-
-    if(kpi >= KeyPackAmount){
-      KeyPacks = (KeyPack_t *)A_resize(
-        KeyPacks,
-        ((uintptr_t)kpi + 1) * sizeof(KeyPack_t)
-      );
-      for(; KeyPackAmount < (KeyPackAmount_t)kpi + 1; KeyPackAmount++){ /* filler open */
-        KeyPacks[KeyPackAmount].KeyAmount = 0;
-        KeyPacks[KeyPackAmount].KeyIndexes = NULL;
-        KeyPacks[KeyPackAmount].KeySizesSum = 0;
-        KeyPacks[KeyPackAmount].KeyTree_root = KeyTree.NewNode();
-        KeyPacks[KeyPackAmount].bm.Open(1);
-      }
-    }
-
-    KeyPacks[kpi].KeyAmount = KeyAmount;
-
-    KeyPacks[kpi].KeyIndexes = A_resize(
-      KeyPacks[kpi].KeyIndexes,
-      (uintptr_t)KeyAmount * sizeof(KeyTypeIndex_t)
-    );
-    __MemoryCopy(
-      KeyIndexes,
-      KeyPacks[kpi].KeyIndexes,
-      (uintptr_t)KeyAmount * sizeof(KeyTypeIndex_t)
-    );
-
-    KeyPacks[kpi].KeySizesSum = 0;
-    for(uintptr_t i = 0; i < KeyAmount; i++){
-      KeyPacks[kpi].KeySizesSum += KeyTypes[KeyIndexes[i]].Size;
-    }
-
-    KeyPacks[kpi].bm.Close();
-    KeyPacks[kpi].bm.Open(sizeof(bm_BaseData_t) + KeyPacks[kpi].KeySizesSum);
-
-    fid.Open(this);
-  }
-
   void AddShapeType(
     ShapeTypeIndex_t sti,
-    KeyPackIndex_t kpi,
     const BlockProperties_t bp
   ){
     while(sti >= ShapeTypes.Usage()){
@@ -637,8 +530,6 @@ struct shaper_t{
         (uintptr_t)bp.RenderDataSize + bp.DataSize + sizeof(ShapeList_t::nr_t)
       ) * (bp.MaxElementPerBlock) + sizeof(BlockUnique_t)
     );
-
-    st.KeyPackIndex = kpi;
 
     st.MaxElementPerBlock_m1 = bp.MaxElementPerBlock - 1;
     st.RenderDataSize = bp.RenderDataSize;
@@ -710,8 +601,8 @@ struct shaper_t{
     ShapeTypeIndex_t sti,
     shaper_t::BlockList_t::nr_t blid,
     uint16_t eiib,
-    uint32_t byte_start,
-    uint32_t byte_count
+    shaper_set_RenderDataOffsetType byte_start,
+    shaper_set_RenderDataOffsetType byte_count
   ){
     ShapeType_t &st = ShapeTypes[sti];
     BlockUnique_t &bu = GetBlockUnique(sti, blid);
@@ -719,11 +610,11 @@ struct shaper_t{
     #if shaper_set_fan
     bu.MinEdit = std::min(
       bu.MinEdit,
-      (uint32_t)eiib * st.RenderDataSize + byte_start
+      (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start
     );
     bu.MaxEdit = std::max(
       bu.MaxEdit,
-      (uint32_t)eiib * st.RenderDataSize + byte_start + byte_count
+      (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start + byte_count
     );
     #endif
 
@@ -788,13 +679,13 @@ struct shaper_t{
 
   BlockList_t::nr_t _newblid(
     ShapeTypeIndex_t sti,
-    bm_BaseData_t *bmbase
+    BlockManager_NodeData_t *bm
   ){
     auto &st = ShapeTypes[sti];
 
-    bmbase->LastBlockElementCount = 0;
+    bm->LastBlockElementCount = 0;
     auto blid = st.BlockList.NewNode();
-    bmbase->LastBlockNR = blid;
+    bm->LastBlockNR = blid;
 
     GetBlockUnique(sti, blid).constructor();
 
@@ -811,330 +702,326 @@ struct shaper_t{
     st.BlockList.Recycle(blid);
   }
 
+  static void _kti_SetLastBit(KeyTypeIndex_t &kti){
+    kti |= (KeyTypeIndex_t)1 << sizeof(KeyTypeIndex_t) * 8 - 1; /* 0x80... */
+  }
+  static KeyTypeIndex_t _kti_GetNormal(KeyTypeIndex_t kti){
+    KeyTypeIndex_t p = 0;
+    _kti_SetLastBit(p);
+    return kti & ~p;
+  }
+  static bool _kti_GetLastBit(KeyTypeIndex_t kti){
+    return _kti_GetNormal(kti) != kti;
+  }
+
   ShapeID_t add(
     ShapeTypeIndex_t sti,
-    const void *KeyDataArray,
+    const void *KeyPack,
+    KeyPackSize_t KeyPackSize,
+    KeyPackSize_t LastKeyOffset,
     const void *RenderData,
     const void *Data
   ){
-    bm_NodeReference_t bmid;
-    bm_BaseData_t *bmbase;
+    auto _KeyPack = (KeyData_t *)KeyPack;
+    _kti_SetLastBit(*(KeyTypeIndex_t *)&_KeyPack[LastKeyOffset]);
+
+    bmid_t bmid;
+    BlockManager_NodeData_t *bm;
 
     auto &st = ShapeTypes[sti];
-    auto &kp = KeyPacks[st.KeyPackIndex];
 
-    auto _KeyDataArray = (KeyData_t *)KeyDataArray;
+    KeyTree_NodeReference_t nr = KeyTree_root;
+    KeyPackSize_t ikp = 0;
+    Key_t::KeySize_t bdbt_ki;
+    KeyType_t *kt;
+    uint8_t step;
 
-    KeyTree_NodeReference_t nr = kp.KeyTree_root;
-    for(KeyIndexInPack_t kiip = 0; kiip < kp.KeyAmount; kiip++){
-      auto kt = &KeyTypes[kp.KeyIndexes[kiip]];
-      Key_t::KeySize_t bdbt_ki;
-      Key_t::q(&KeyTree, kt->sibit(), _KeyDataArray, &bdbt_ki, &nr);
-      if(bdbt_ki != kt->sibit()){
-        /* query failed to find rest so lets make new block manager */
+    /* DEBUG_HINT if this loop goes above KeyPackSize, your KeyPack is bad */
+    while(ikp != KeyPackSize){
 
-        bmid = kp.bm.NewNode();
-        bmbase = (bm_BaseData_t *)kp.bm[bmid];
-        bmbase->sti = sti;
-        bmbase->FirstBlockNR = _newblid(sti, bmbase);
-        __MemoryCopy(KeyDataArray, &bmbase[1], kp.KeySizesSum);
-
-        do{
-          KeyTree_NodeReference_t out;
-          if(kiip != kp.KeyAmount - 1){
-            out = KeyTree.NewNode();
-          }
-          else{
-            out = *(KeyTree_NodeReference_t *)&bmid;
-          }
-
-          Key_t::a(&KeyTree, kt->sibit(), _KeyDataArray, bdbt_ki, nr, out);
-          bdbt_ki = 0;
-
-          nr = out;
-
-          _KeyDataArray += kt->Size;
-
-          if(++kiip == kp.KeyAmount){
-            break;
-          }
-
-          kt = &KeyTypes[kp.KeyIndexes[kiip]];
-        }while(1);
-
-        goto gt_NoNewBlockManager;
+      auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
+      Key_t::q(&KeyTree, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
+      if(bdbt_ki != sizeof(*kti) * 8){
+        step = 0;
+        goto gt_newbm;
       }
+      ikp += sizeof(*kti);
 
-      _KeyDataArray += kt->Size;
+      kt = &KeyTypes[_kti_GetNormal(*kti)];
+      Key_t::q(&KeyTree, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
+      if(bdbt_ki != kt->sibit()){
+        step = 1;
+        goto gt_newbm;
+      }
+      ikp += kt->Size;
     }
 
-    bmid = *(bm_NodeReference_t *)&nr;
-    bmbase = (bm_BaseData_t *)kp.bm[bmid];
+    bmid = *(BlockManager_t::nr_t *)&nr;
+    bm = &BlockManager[bmid];
 
-    if(bmbase->LastBlockElementCount == st.MaxElementPerBlock_m1){
-      st.BlockList.linkNextOfOrphan(bmbase->LastBlockNR, _newblid(sti, bmbase));
+    if(bm->LastBlockElementCount == st.MaxElementPerBlock_m1){
+      auto lbnr = bm->LastBlockNR;
+      auto nblid = _newblid(sti, bm);
+      st.BlockList.linkNextOfOrphan(lbnr, nblid);
     }
     else{
-      bmbase->LastBlockElementCount++;
+      bm->LastBlockElementCount++;
     }
 
-    gt_NoNewBlockManager:
+    goto gt_nonewbm;
+
+    gt_newbm:
+
+    bmid = BlockManager.NewNode();
+    bm = &BlockManager[bmid];
+    bm->KeyPackSize = KeyPackSize;
+    bm->KeyPack = (uint8_t *)A_resize(NULL, bm->KeyPackSize);
+    __MemoryCopy(KeyPack, bm->KeyPack, bm->KeyPackSize);
+    bm->sti = sti;
+    bm->FirstBlockNR = _newblid(sti, bm);
+
+    /* DEBUG_HINT if this loop goes above KeyPackSize, your KeyPack is bad */
+    while(ikp != KeyPackSize){
+      KeyTree_NodeReference_t out;
+      if(step == 0){
+        auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
+        kt = &KeyTypes[_kti_GetNormal(*kti)];
+
+        out = KeyTree.NewNode();
+
+        Key_t::a(&KeyTree, sizeof(*kti) * 8, kti, bdbt_ki, nr, out);
+
+        ikp += sizeof(*kti);
+      }
+      else if(step == 1){
+        if(ikp + kt->Size != KeyPackSize){
+          out = KeyTree.NewNode();
+        }
+        else{
+          out = *(KeyTree_NodeReference_t *)&bmid;
+        }
+
+        Key_t::a(&KeyTree, kt->sibit(), &_KeyPack[ikp], bdbt_ki, nr, out);
+
+        ikp += kt->Size;
+      }
+      else{
+        __unreachable();
+      }
+      bdbt_ki = 0;
+      nr = out;
+      step ^= 1;
+    }
+
+    gt_nonewbm:
 
     auto shapeid = ShapeList.NewNode();
     ShapeList[shapeid].sti = sti;
     ShapeList[shapeid].bmid = bmid;
-    ShapeList[shapeid].blid = bmbase->LastBlockNR;
-    ShapeList[shapeid].ElementIndex = bmbase->LastBlockElementCount;
+    ShapeList[shapeid].blid = bm->LastBlockNR;
+    ShapeList[shapeid].ElementIndex = bm->LastBlockElementCount;
 
     __MemoryCopy(
       RenderData,
-      _GetRenderData(sti, bmbase->LastBlockNR, bmbase->LastBlockElementCount),
+      _GetRenderData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
       st.RenderDataSize
     );
     __MemoryCopy(
       Data,
-      _GetData(sti, bmbase->LastBlockNR, bmbase->LastBlockElementCount),
+      _GetData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
       st.DataSize
     );
-    _GetShapeID(sti, bmbase->LastBlockNR, bmbase->LastBlockElementCount) = shapeid;
+    _GetShapeID(sti, bm->LastBlockNR, bm->LastBlockElementCount) = shapeid;
 
-    ElementIsFullyEdited(sti, bmbase->LastBlockNR, bmbase->LastBlockElementCount);
+    ElementIsFullyEdited(sti, bm->LastBlockNR, bm->LastBlockElementCount);
 
     return shapeid;
   }
 
   void remove(
-    ShapeList_t::nr_t shapeid
+    ShapeList_t::nr_t sid
   ){
-    ShapeTypeIndex_t sti;
-    ShapeType_t *st;
-    KeyPack_t *kp;
-    bm_t::nr_t bmid;
-    bm_BaseData_t *bmbase;
+    auto &s = ShapeList[sid];
+    auto sti = s.sti;
+    auto &st = ShapeTypes[sti];
+    auto bmid = s.bmid;
+    auto &bm = BlockManager[bmid];
 
-    {
-      auto &s = ShapeList[shapeid];
-      sti = s.sti;
-      st = &ShapeTypes[s.sti];
-      kp = &KeyPacks[st->KeyPackIndex];
-      bmid = s.bmid;
-      bmbase = (bm_BaseData_t *)kp->bm[bmid];
-
-      auto &lshape = ShapeList[
-        _GetShapeID(s.sti, bmbase->LastBlockNR, bmbase->LastBlockElementCount)
-      ];
-
-      __MemoryMove(
-        _GetRenderData(s.sti, s.blid, s.ElementIndex),
-        _GetRenderData(s.sti, lshape.blid, lshape.ElementIndex),
-        st->RenderDataSize
-      );
-      __MemoryMove(
-        _GetData(s.sti, s.blid, s.ElementIndex),
-        _GetData(s.sti, lshape.blid, lshape.ElementIndex),
-        st->DataSize
-      );
-      _GetShapeID(s.sti, s.blid, s.ElementIndex) =
-        _GetShapeID(s.sti, lshape.blid, lshape.ElementIndex);
-
-      lshape.blid = s.blid;
-      lshape.ElementIndex = s.ElementIndex;
-
-      ShapeList.Recycle(shapeid);
+    auto lsid = _GetShapeID(sti, bm.LastBlockNR, bm.LastBlockElementCount);
+    if(sid != lsid){
+      ElementIsFullyEdited(sti, s.blid, s.ElementIndex);
     }
 
-    /* shapeid we deleted may be same as last so lets no longer access shape plus lshape */
+    auto &ls = ShapeList[lsid];
+
+    __MemoryMove(
+      _GetRenderData(sti, s.blid, s.ElementIndex),
+      _GetRenderData(sti, ls.blid, ls.ElementIndex),
+      st.RenderDataSize
+    );
+    __MemoryMove(
+      _GetData(sti, s.blid, s.ElementIndex),
+      _GetData(sti, ls.blid, ls.ElementIndex),
+      st.DataSize
+    );
+    _GetShapeID(sti, s.blid, s.ElementIndex) =
+      _GetShapeID(sti, ls.blid, ls.ElementIndex);
+
+    ls.blid = s.blid;
+    ls.ElementIndex = s.ElementIndex;
+
+    ShapeList.Recycle(sid);
+
+    /* sid we deleted may be same as last so lets no longer access s and ls */
 
     /* we just deleted last so lets check if we can just decrease count */
-    if(bmbase->LastBlockElementCount != 0){
-      bmbase->LastBlockElementCount--;
+    if(bm.LastBlockElementCount != 0){
+      bm.LastBlockElementCount--;
       return;
     }
-    
-    /* looks like we deleted first element in block so we need to delete last block */
-    /* before do that we need to be sure if that we dont delete first block in block manager */
-    if(bmbase->FirstBlockNR != bmbase->LastBlockNR){
-      auto blid = bmbase->LastBlockNR;
-      bmbase->LastBlockNR = blid.Prev(&st->BlockList);
-      _deleteblid(sti, blid);
-      bmbase->LastBlockElementCount = st->MaxElementPerBlock_m1;
+
+    /* looks like we deleted last standing element in block so we need to delete block */
+
+    /* before that, lets be sure its not last standing block in bm */
+    if(bm.FirstBlockNR != bm.LastBlockNR){
+      auto lblid = bm.LastBlockNR;
+      bm.LastBlockNR = lblid.Prev(&st.BlockList);
+      _deleteblid(sti, lblid);
+      bm.LastBlockElementCount = st.MaxElementPerBlock_m1;
       return;
     }
 
     /* good luck we need to remove block manager completely */
     /* aaaaaaaaaaaa */
 
-    _deleteblid(sti, bmbase->LastBlockNR);
+    _deleteblid(sti, bm.LastBlockNR);
 
-    auto KeyDataArray = (KeyData_t *)&bmbase[1];
-    auto knr = kp->KeyTree_root;
+    KeyTree_NodeReference_t knrs[shaper_set_MaxKeyAmountInBM * 2];
+    KeySizeInBytes_t ks[shaper_set_MaxKeyAmountInBM * 2];
 
-    for(KeyIndexInPack_t kiip = 0; kiip < kp->KeyAmount; kiip++){
-      auto *kt = &KeyTypes[kp->KeyIndexes[kiip]];
-      fid.knrs[kiip] = knr;
-      Key_t::cq(&KeyTree, kt->sibit(), KeyDataArray, &knr);
-      KeyDataArray += kt->Size;
+    auto KeyPack = bm.KeyPack;
+    auto knr = KeyTree_root;
+    KeyPackSize_t ikp = 0;
+    _KeyIndexInBM_t _kiibm = 0;
+    while(ikp != bm.KeyPackSize){
+      auto kti = (KeyTypeIndex_t *)&KeyPack[ikp];
+      knrs[_kiibm] = knr;
+      ks[_kiibm++] = sizeof(*kti);
+      Key_t::cq(&KeyTree, sizeof(*kti) * 8, kti, &knr);
+      ikp += sizeof(*kti);
+
+      auto &kt = KeyTypes[_kti_GetNormal(*kti)];
+      knrs[_kiibm] = knr;
+      ks[_kiibm++] = kt.Size;
+      Key_t::cq(&KeyTree, kt.sibit(), &KeyPack[ikp], &knr);
+      ikp += kt.Size;
     }
 
     /* TODO this part can be faster if used some different function instead of .r */
-    for(KeyIndexInPack_t kiip = kp->KeyAmount - 1;;){
-      auto *kt = &KeyTypes[kp->KeyIndexes[kiip]];
-      KeyDataArray -= kt->Size;
-      Key_t::r(&KeyTree, kt->sibit(), KeyDataArray, fid.knrs[kiip]);
-      if(KeyTree.inrhc(fid.knrs[kiip])){
+    --_kiibm;
+    while(1){
+      auto size = ks[_kiibm];
+      ikp -= size;
+      Key_t::r(&KeyTree, (KeySizeInBits_t)size * 8, &KeyPack[ikp], knrs[_kiibm]);
+      if(KeyTree.inrhc(knrs[_kiibm])){
         break;
       }
-      if(kiip == 0){
+      if(_kiibm == 0){
         break;
       }
-      KeyTree.Recycle(fid.knrs[kiip]);
-      kiip--;
+      KeyTree.Recycle(knrs[_kiibm]);
+      _kiibm--;
     }
 
-    kp->bm.Recycle(bmid);
+    BlockManager.Recycle(bmid);
   }
 
-  struct KeyPackTraverse_t{
-    KeyPackIndex_t kpi;
-
-    void Init(shaper_t &shaper){
-      kpi = (KeyPackIndex_t)-1;
-    }
-    bool Loop(shaper_t &shaper){
-      return ++kpi <= shaper.KeyPackAmount - 1;
-    }
-  };
-
+  #pragma pack(push, 1)
   struct KeyTraverse_t{
-    private: /* ----------------------------------------------------------------------------- */
-
     uint8_t State;
-    KeyIndexInPack_t KeyIndexInPack;
-    KeyPack_t *kp;
+    KeyIndexInBM_t kiibm;
+    KeyTree_NodeReference_t knr;
     KeyType_t *kt;
+    bool isbm;
 
-    public: /* ------------------------------------------------------------------------------ */
-
-    KeyData_t *KeyData;
+    KeyTypeIndex_t kd0[shaper_set_MaxKeyAmountInBM];
+    KeyData_t kd1[shaper_set_MaxKeySizesSum][shaper_set_MaxKeyAmountInBM];
+    Key_t::Traverse_t tra0[shaper_set_MaxKeyAmountInBM];
+    Key_t::Traverse_t behindtra; /* little maneuver */
+    Key_t::Traverse_t tra1[shaper_set_MaxKeyAmountInBM];
 
     void Init(
-      shaper_t &shaper,
-      const KeyPackIndex_t kpi
+      shaper_t &shaper
     ){
       State = 0;
-      kp = &shaper.KeyPacks[kpi];
+      kiibm = 0;
+      behindtra.Output = shaper.KeyTree_root;
     }
     bool Loop(
-      shaper_t &shaper,
-      KeyTypeIndex_t &kti
+      shaper_t &shaper
     ){
       gt_reswitch:
 
       switch(State){
         case 0:{
-          KeyIndexInPack = 0;
-          KeyData = shaper.fid.KeyDatas;
-
-          if(!kp->KeyAmount){
-            /* TODO bmid */
-            kti = (KeyTypeIndex_t)-1;
-            State = 1;
-            return true;
-          }
-
-          kt = &shaper.KeyTypes[kp->KeyIndexes[0]];
-
-          shaper.fid.tra[0].i0(
-            kp->KeyTree_root,
-            kt->BitOrder
+          tra0[kiibm].i0(
+            tra1[(uintptr_t)kiibm - 1].Output, /* tra1 index is underflowable on purpose */
+            KeyBitOrderAny
           );
-
-          if(shaper.fid.tra[0].t0(
-            &shaper.KeyTree,
-            kt->sibit(),
-            KeyData,
-            kt->BitOrder
-          ) == false){
-            return false;
-          }
-
-          kti = kp->KeyIndexes[0];
-
-          State = 2;
-
-          return true;
+          State = 1;
         }
         case 1:{
-          return false;
-        }
-        case 2:{
-          if(KeyIndexInPack == kp->KeyAmount - 1){
-            kti = (KeyTypeIndex_t)-1;
-            State = 3;
-            return true;
+          if(tra0[kiibm].t0(
+            &shaper.KeyTree,
+            sizeof(*kd0) * 8,
+            &kd0[kiibm],
+            KeyBitOrderAny
+          ) == false){
+            if(kiibm == 0){
+              return false;
+            }
+            State = 2;
+            --kiibm;
+            goto gt_reswitch;
           }
-          KeyData += shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]].Size;
-          KeyIndexInPack++;
-
-          kt = &shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]];
-
-          shaper.fid.tra[KeyIndexInPack].i0(
-            shaper.fid.tra[KeyIndexInPack - 1].Output,
+          isbm = _kti_GetLastBit(kd0[kiibm]);
+          kt = &shaper.KeyTypes[_kti_GetNormal(kd0[kiibm])];
+          tra1[kiibm].i0(
+            tra0[kiibm].Output,
             kt->BitOrder
           );
-
-          gt_retra:
-
-          if(shaper.fid.tra[KeyIndexInPack].t0(
-            &shaper.KeyTree,
-            kt->sibit(),
-            KeyData,
-            kt->BitOrder
-          ) == false){
-            State = 4;
-            goto gt_reswitch;
-          }
-
-          kti = kp->KeyIndexes[KeyIndexInPack];
-
-          return true;
-        }
-        case 3:{
-          if(shaper.fid.tra[KeyIndexInPack].t0(
-            &shaper.KeyTree,
-            kt->sibit(),
-            KeyData,
-            kt->BitOrder
-          ) == false){
-            State = 4;
-            goto gt_reswitch;
-          }
-          kti = kp->KeyIndexes[KeyIndexInPack];
-          State = 5;
-          return true;
-        }
-        case 4:{
-          if(KeyIndexInPack == 0){
-            return false;
-          }
-          KeyIndexInPack--;
-          KeyData -= shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]].Size;
-          kt = &shaper.KeyTypes[kp->KeyIndexes[KeyIndexInPack]];
           State = 2;
-          goto gt_retra;
         }
-        case 5:{
-          kti = (KeyTypeIndex_t)-1;
-          State = 3;
+        case 2:{
+          if(tra1[kiibm].t0(
+            &shaper.KeyTree,
+            kt->sibit(),
+            &kd1[kiibm],
+            kt->BitOrder
+          ) == false){
+            State = 1;
+            goto gt_reswitch;
+          }
+          if(!isbm){
+            ++kiibm;
+            State = 0;
+          }
           return true;
         }
       }
       __unreachable();
     }
-    bmid_t bmid(shaper_t &shaper){
-      return *(bmid_t *)&shaper.fid.tra[KeyIndexInPack].Output;
+    KeyData_t *kd(){
+      return kd1[kiibm - !isbm];
+    }
+    KeyTypeIndex_t kti(shaper_t &shaper){
+      return ((uintptr_t)kt - (uintptr_t)shaper.KeyTypes) / sizeof(KeyTypes[0]);
+    }
+    bmid_t bmid(){
+      return *(bmid_t *)&tra1[kiibm].Output;
     }
   };
+  #pragma pack(pop)
 
   struct BlockTraverse_t{
     private: /* ----------------------------------------------------------------------------- */
@@ -1146,14 +1033,13 @@ struct shaper_t{
 
     public: /* ------------------------------------------------------------------------------ */
 
-    ShapeTypeIndex_t Init(shaper_t &shaper, KeyPackIndex_t kpi, bmid_t bmid){
-      auto &kp = shaper.KeyPacks[kpi];
-      bm_BaseData_t *bmbase = (bm_BaseData_t *)kp.bm[bmid];
-      sti = bmbase->sti;
-      From = bmbase->FirstBlockNR;
-      To = bmbase->LastBlockNR;
-      LastBlockElementCount = bmbase->LastBlockElementCount;
-      return bmbase->sti;
+    ShapeTypeIndex_t Init(shaper_t &shaper, bmid_t bmid){
+      auto &bm = shaper.BlockManager[bmid];
+      sti = bm.sti;
+      From = bm.FirstBlockNR;
+      To = bm.LastBlockNR;
+      LastBlockElementCount = bm.LastBlockElementCount;
+      return bm.sti;
     }
     bool Loop(shaper_t &shaper){
       if(From == To){
@@ -1186,10 +1072,9 @@ struct shaper_t{
 #undef shaper_set_RenderDataOffsetType
 #undef shaper_set_MaxShapeDataSize
 #undef shaper_set_MaxShapeRenderDataSize
+#undef shaper_set_MaxKeyAmountInBM
 #undef shaper_set_MaxKeySizesSum
 #undef shaper_set_MaxMaxElementPerBlock
-#undef shaper_set_MaxKeyPackAmount
 #undef shaper_set_MaxKeyType
 #undef shaper_set_MaxKeySize
-#undef shaper_set_MaxKeyInPack
 #undef shaper_set_MaxShapeTypes
