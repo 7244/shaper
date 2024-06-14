@@ -980,8 +980,10 @@ struct shaper_t{
             if(kiibm == 0){
               return false;
             }
-            State = 2;
             --kiibm;
+            isbm = false;
+            kt = &shaper.KeyTypes[kd0[kiibm]];
+            State = 2;
             goto gt_reswitch;
           }
           isbm = _kti_GetLastBit(kd0[kiibm]);
