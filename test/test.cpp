@@ -2,7 +2,7 @@
 #include <WITCH/A/A.h>
 #include <WITCH/RAND/RAND.h>
 
-#include "shaper/shaper.h"
+#include "../shaper/shaper.h"
 shaper_t shaper;
 
 using KeyType_blending = uint8_t;
@@ -43,8 +43,8 @@ template<
   uintptr_t s = (sizeof(Ts) + ...)
 >constexpr shaper_t::ShapeID_t shape_add(
   shaper_t::ShapeTypeIndex_t sti,
-  auto rd,
-  auto d,
+  const auto &rd,
+  const auto &d,
   Ts... args
 ){
   structarr_t<s> a;
@@ -75,18 +75,16 @@ int main(){
     .DataSize = 0
   });
 
-  for(uint32_t i = 0; i < 1000; i++){
-    auto sid = shape_add(shapes::rectangle,
-      shape_rectangle_RenderData_t{
-        .SizeX = 7,
-        .SizeY = 9
-      },
-      shape_rectangle_Data_t{},
-      kids::blending, (KeyType_blending)1,
-      kids::depth, (KeyType_depth)5,
-      kids::sti, shapes::rectangle
-    );
-  }
+  auto sid = shape_add(shapes::rectangle,
+    shape_rectangle_RenderData_t{
+      .SizeX = 7,
+      .SizeY = 9
+    },
+    shape_rectangle_Data_t{},
+    kids::blending, (KeyType_blending)1,
+    kids::depth, (KeyType_depth)5,
+    kids::sti, shapes::rectangle
+  );
   //shaper.remove(sid);
 
   shaper_t::KeyTraverse_t kt;
