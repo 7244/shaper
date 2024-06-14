@@ -53,6 +53,7 @@ struct gl_t{
   ProgramList_t ProgramList;
 
   uint8_t CurrentProgram;
+  pixel_t _ClearColor;
 
   enum GLenum{
     VERTEX_SHADER,
@@ -60,6 +61,29 @@ struct gl_t{
 
     POINTS
   };
+  using GLbitfield = uint32_t;
+  constexpr static GLbitfield COLOR_BUFFER_BIT = 0x00000001;
+
+  void ClearColor(f32_t red, f32_t green, f32_t blue, f32_t alpha){
+    _ClearColor.c[0] = red * 0xff;
+    _ClearColor.c[1] = green * 0xff;
+    _ClearColor.c[2] = blue * 0xff;
+  }
+  void Clear(GLbitfield mask){
+    if(mask & COLOR_BUFFER_BIT){
+      mask ^= COLOR_BUFFER_BIT;
+
+      for(uint32_t i1 = 0; i1 < res1; i1++){
+        for(uint32_t i0 = 0; i0 < res0; i0++){
+          pixmap[i1 * res0 + i0] = _ClearColor;
+        }
+      }
+    }
+
+    if(mask){
+      __abort();
+    }
+  }
 
   uint32_t CreateShader(GLenum shaderType){
     if(shaderType == VERTEX_SHADER){

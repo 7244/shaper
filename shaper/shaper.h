@@ -599,7 +599,7 @@ struct shaper_t{
 
   void ElementIsPartiallyEdited(
     ShapeTypeIndex_t sti,
-    shaper_t::BlockList_t::nr_t blid,
+    blid_t blid,
     uint16_t eiib,
     shaper_set_RenderDataOffsetType byte_start,
     shaper_set_RenderDataOffsetType byte_count
@@ -629,7 +629,7 @@ struct shaper_t{
   }
   void ElementIsFullyEdited(
     ShapeTypeIndex_t sti,
-    shaper_t::BlockList_t::nr_t blid,
+    blid_t blid,
     uint16_t eiib
   ){
     auto &st = ShapeTypes[sti];

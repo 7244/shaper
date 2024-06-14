@@ -90,9 +90,13 @@ template<
   return shaper.add(sti, &a, s, LastKeyOffset, &rd, &d);
 }
 
+#include <cmath>
+
 int main(){
   gl_t gl;
   gl.Open(output_res0, output_res1);
+
+  gl.ClearColor(0, 0, 0, 0);
 
   auto vertex = gl.CreateShader(gl_t::VERTEX_SHADER);
   gl.ShaderSource(vertex, (void *)+[](
@@ -185,39 +189,52 @@ int main(){
     kids::sti, shapes::square
   );
 
-  shaper_t::KeyTraverse_t kt;
-  kt.Init(shaper);
-  while(kt.Loop(shaper)){
-    shaper_t::KeyTypeIndex_t kti = kt.kti(shaper);
-    if(kti == kids::depth){
-      /* lost inside himself */
-    }
-    else if(kti == kids::prog){
-      gl.UseProgram(*(KeyType_depth *)kt.kd());
-    }
-    else if(kti == kids::sti){
-      /* sitititi */
-    }
-    else{
-      /* internal error */
-      __abort();
+  for(uint32_t iframe = 0; iframe < 120; iframe++){
+    gl.Clear(gl_t::COLOR_BUFFER_BIT);
+
+    {
+      auto sid0rd = (shape_square_RenderData_t *)shaper.GetRenderData(sid0);
+      sid0rd->p0 = -8 + std::sin(0.25 * iframe) * 32;
+      sid0rd->p1 = -8 + std::cos(0.25 * iframe) * 32;
+      auto sid1rd = (shape_square_RenderData_t *)shaper.GetRenderData(sid1);
+      sid1rd->p0 = +8 + std::cos(0.25 * iframe) * 32;
+      sid1rd->p1 = +8 + std::sin(0.25 * iframe) * 32;
     }
 
-    if(kt.isbm){
-      shaper_t::BlockTraverse_t bt;
-      auto sti = bt.Init(shaper, kt.bmid());
-      do{
-        gl.DrawArrays(
-          gl_t::POINTS,
-          bt.GetRenderData(shaper),
-          sizeof(shape_square_RenderData_t),
-          bt.GetAmount(shaper)
-        );
-      }while(bt.Loop(shaper));
+    shaper_t::KeyTraverse_t kt;
+    kt.Init(shaper);
+    while(kt.Loop(shaper)){
+      shaper_t::KeyTypeIndex_t kti = kt.kti(shaper);
+      if(kti == kids::depth){
+        /* lost inside himself */
+      }
+      else if(kti == kids::prog){
+        gl.UseProgram(*(KeyType_depth *)kt.kd());
+      }
+      else if(kti == kids::sti){
+        /* sitititi */
+      }
+      else{
+        /* internal error */
+        __abort();
+      }
+
+      if(kt.isbm){
+        shaper_t::BlockTraverse_t bt;
+        auto sti = bt.Init(shaper, kt.bmid());
+        do{
+          gl.DrawArrays(
+            gl_t::POINTS,
+            bt.GetRenderData(shaper),
+            sizeof(shape_square_RenderData_t),
+            bt.GetAmount(shaper)
+          );
+        }while(bt.Loop(shaper));
+      }
     }
+
+    print("%.*s", (uintptr_t)output_res0 * output_res1 * 3, gl.pixmap);
   }
-
-  print("%.*s", (uintptr_t)output_res0 * output_res1 * 3, gl.pixmap);
 
   shaper.Close();
 
