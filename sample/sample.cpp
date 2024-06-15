@@ -206,13 +206,13 @@ int main(){
     while(kt.Loop(shaper)){
       shaper_t::KeyTypeIndex_t kti = kt.kti(shaper);
       if(kti == kids::depth){
-        /* lost inside himself */
+        /* ~lost inside himself~ */
       }
       else if(kti == kids::prog){
-        gl.UseProgram(*(KeyType_depth *)kt.kd());
+        gl.UseProgram(*(KeyType_prog *)kt.kd());
       }
       else if(kti == kids::sti){
-        /* sitititi */
+        /* ~sitititi~ */
       }
       else{
         /* internal error */

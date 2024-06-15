@@ -1,7 +1,7 @@
 #pragma pack(push, 1)
 struct gl_t{
-  uint32_t res0 = 320;
-  uint32_t res1 = 240;
+  uint32_t res0;
+  uint32_t res1;
 
   struct pixel_t{
     uint8_t c[3];
