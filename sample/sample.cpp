@@ -62,32 +62,32 @@ struct shapes{enum : shaper_t::ShapeTypeIndex_t{
   };
 #pragma pack(pop)
 
-template <uintptr_t s>
-struct structarr_t {
-  uint8_t p[s];
-  uint8_t &operator[](uintptr_t i){
-    return p[i];
-  }
-};
 template<
   typename... Ts,
   uintptr_t s = (sizeof(Ts) + ...)
 >constexpr shaper_t::ShapeID_t shape_add(
   shaper_t::ShapeTypeIndex_t sti,
-  const auto &rd,
-  const auto &d,
+  const auto& rd,
+  const auto& d,
   Ts... args
 ){
-  structarr_t<s> a;
+  struct structarr_t {
+    uint8_t p[s];
+    uint8_t& operator[](uintptr_t i) {
+      return p[i];
+    }
+  };
+  structarr_t a;
   uintptr_t i = 0;
   ([&](auto arg) {
     __MemoryCopy(&arg, &a[i], sizeof(arg));
     i += sizeof(arg);
-  }(args), ...);
+    }(args), ...);
   constexpr uintptr_t count = (!!(sizeof(Ts) + 1) + ...);
   static_assert(count % 2 == 0);
-  uintptr_t LastKeyOffset = s - (sizeof(Ts), ...) - 1;
-  return shaper.add(sti, &a, s, LastKeyOffset, &rd, &d);
+  uintptr_t LastKeyOffset = s - (sizeof(Ts), ...) - sizeof(shaper_t::KeyTypeIndex_t);
+  shaper.PrepareKeysForAdd(&a, LastKeyOffset);
+  return shaper.add(sti, &a, s, &rd, &d);
 }
 
 #include <cmath>

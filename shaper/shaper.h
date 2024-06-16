@@ -47,8 +47,6 @@
 #define gloco gloco_is_not_allowed
 
 struct shaper_t{
-  public: /* -------------------------------------------------------------------------------- */
-
   #if shaper_set_MaxShapeTypes <= 0xff
     typedef uint8_t ShapeTypeAmount_t;
   #elif shaper_set_MaxShapeTypes <= 0xffff
@@ -171,10 +169,8 @@ struct shaper_t{
   typedef uint8_t ShapeRenderData_t;
   typedef uint8_t ShapeData_t;
 
-  private: /* ------------------------------------------------------------------------------- */
-
   /* key tree and block manager node reference type */
-  typedef uint16_t ktbmnr_t;
+  typedef uint16_t _ktbmnr_t;
 
   /* block list node reference */
   /*
@@ -183,8 +179,8 @@ struct shaper_t{
   */
   typedef uint16_t _blid_t;
 
-  #define BDBT_set_prefix KeyTree
-  #define BDBT_set_type_node ktbmnr_t
+  #define BDBT_set_prefix _KeyTree
+  #define BDBT_set_type_node _ktbmnr_t
   #define BDBT_set_lcpp
   #define BDBT_set_KeySize 0
   #ifdef shaper_set_MaxKeySize
@@ -192,9 +188,9 @@ struct shaper_t{
   #endif
   #define BDBT_set_AreWeInsideStruct 1
   #include <BDBT/BDBT.h>
-  KeyTree_t KeyTree;
-  typedef KeyTree_Key_t Key_t;
-  KeyTree_NodeReference_t KeyTree_root;
+  _KeyTree_t _KeyTree;
+  typedef _KeyTree_Key_t Key_t;
+  _KeyTree_NodeReference_t KeyTree_root;
 
   public: /* -------------------------------------------------------------------------------- */
 
@@ -277,7 +273,7 @@ struct shaper_t{
   #define BLL_set_CPP_Node_ConstructDestruct 1
   #define BLL_set_Link 0
   #define BLL_set_AreWeInsideStruct 1
-  #define BLL_set_type_node ktbmnr_t
+  #define BLL_set_type_node _ktbmnr_t
   #define BLL_set_NodeData \
     KeyPackSize_t KeyPackSize; \
     uint8_t *KeyPack; \
@@ -476,8 +472,8 @@ struct shaper_t{
 
     ShapeTypes.Open();
 
-    KeyTree.Open();
-    KeyTree_root = KeyTree.NewNode();
+    _KeyTree.Open();
+    KeyTree_root = _KeyTree.NewNode();
     BlockManager.Open();
     BlockEditQueue.Open();
     ShapeList.Open();
@@ -486,7 +482,7 @@ struct shaper_t{
     ShapeList.Close();
     BlockEditQueue.Close();
     BlockManager.Close();
-    KeyTree.Close();
+    _KeyTree.Close();
 
     for(auto &st : ShapeTypes){
       st.BlockList.Close();
@@ -720,23 +716,28 @@ struct shaper_t{
     return _kti_GetNormal(kti) != kti;
   }
 
+  void PrepareKeysForAdd(
+    const void *KeyPack,
+    KeyPackSize_t LastKeyOffset
+  ){
+    auto _KeyPack = (KeyData_t *)KeyPack;
+    _kti_SetLastBit(*(KeyTypeIndex_t *)&_KeyPack[LastKeyOffset]);
+  }
   ShapeID_t add(
     ShapeTypeIndex_t sti,
     const void *KeyPack,
     KeyPackSize_t KeyPackSize,
-    KeyPackSize_t LastKeyOffset,
     const void *RenderData,
     const void *Data
   ){
     auto _KeyPack = (KeyData_t *)KeyPack;
-    _kti_SetLastBit(*(KeyTypeIndex_t *)&_KeyPack[LastKeyOffset]);
 
     bmid_t bmid;
     BlockManager_NodeData_t *bm;
 
     auto &st = ShapeTypes[sti];
 
-    KeyTree_NodeReference_t nr = KeyTree_root;
+    _KeyTree_NodeReference_t nr = KeyTree_root;
     KeyPackSize_t ikp = 0;
     Key_t::KeySize_t bdbt_ki;
     KeyType_t *kt;
@@ -746,7 +747,7 @@ struct shaper_t{
     while(ikp != KeyPackSize){
 
       auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
-      Key_t::q(&KeyTree, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
+      Key_t::q(&_KeyTree, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
       if(bdbt_ki != sizeof(*kti) * 8){
         step = 0;
         goto gt_newbm;
@@ -754,7 +755,7 @@ struct shaper_t{
       ikp += sizeof(*kti);
 
       kt = &KeyTypes[_kti_GetNormal(*kti)];
-      Key_t::q(&KeyTree, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
+      Key_t::q(&_KeyTree, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
       if(bdbt_ki != kt->sibit()){
         step = 1;
         goto gt_newbm;
@@ -788,26 +789,26 @@ struct shaper_t{
 
     /* DEBUG_HINT if this loop goes above KeyPackSize, your KeyPack is bad */
     while(ikp != KeyPackSize){
-      KeyTree_NodeReference_t out;
+      _KeyTree_NodeReference_t out;
       if(step == 0){
         auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
         kt = &KeyTypes[_kti_GetNormal(*kti)];
 
-        out = KeyTree.NewNode();
+        out = _KeyTree.NewNode();
 
-        Key_t::a(&KeyTree, sizeof(*kti) * 8, kti, bdbt_ki, nr, out);
+        Key_t::a(&_KeyTree, sizeof(*kti) * 8, kti, bdbt_ki, nr, out);
 
         ikp += sizeof(*kti);
       }
       else if(step == 1){
         if(ikp + kt->Size != KeyPackSize){
-          out = KeyTree.NewNode();
+          out = _KeyTree.NewNode();
         }
         else{
-          out = *(KeyTree_NodeReference_t *)&bmid;
+          out = *(_KeyTree_NodeReference_t *)&bmid;
         }
 
-        Key_t::a(&KeyTree, kt->sibit(), &_KeyPack[ikp], bdbt_ki, nr, out);
+        Key_t::a(&_KeyTree, kt->sibit(), &_KeyPack[ikp], bdbt_ki, nr, out);
 
         ikp += kt->Size;
       }
@@ -902,7 +903,7 @@ struct shaper_t{
 
     _deleteblid(sti, bm.LastBlockNR);
 
-    KeyTree_NodeReference_t knrs[shaper_set_MaxKeyAmountInBM * 2];
+    _KeyTree_NodeReference_t knrs[shaper_set_MaxKeyAmountInBM * 2];
     KeySizeInBytes_t ks[shaper_set_MaxKeyAmountInBM * 2];
 
     auto KeyPack = bm.KeyPack;
@@ -913,13 +914,13 @@ struct shaper_t{
       auto kti = (KeyTypeIndex_t *)&KeyPack[ikp];
       knrs[_kiibm] = knr;
       ks[_kiibm++] = sizeof(*kti);
-      Key_t::cq(&KeyTree, sizeof(*kti) * 8, kti, &knr);
+      Key_t::cq(&_KeyTree, sizeof(*kti) * 8, kti, &knr);
       ikp += sizeof(*kti);
 
       auto &kt = KeyTypes[_kti_GetNormal(*kti)];
       knrs[_kiibm] = knr;
       ks[_kiibm++] = kt.Size;
-      Key_t::cq(&KeyTree, kt.sibit(), &KeyPack[ikp], &knr);
+      Key_t::cq(&_KeyTree, kt.sibit(), &KeyPack[ikp], &knr);
       ikp += kt.Size;
     }
 
@@ -928,14 +929,14 @@ struct shaper_t{
     while(1){
       auto size = ks[_kiibm];
       ikp -= size;
-      Key_t::r(&KeyTree, (KeySizeInBits_t)size * 8, &KeyPack[ikp], knrs[_kiibm]);
-      if(KeyTree.inrhc(knrs[_kiibm])){
+      Key_t::r(&_KeyTree, (KeySizeInBits_t)size * 8, &KeyPack[ikp], knrs[_kiibm]);
+      if(_KeyTree.inrhc(knrs[_kiibm])){
         break;
       }
       if(_kiibm == 0){
         break;
       }
-      KeyTree.Recycle(knrs[_kiibm]);
+      _KeyTree.Recycle(knrs[_kiibm]);
       _kiibm--;
     }
 
@@ -946,7 +947,7 @@ struct shaper_t{
   struct KeyTraverse_t{
     uint8_t State;
     KeyIndexInBM_t kiibm;
-    KeyTree_NodeReference_t knr;
+    _KeyTree_NodeReference_t knr;
     KeyType_t *kt;
     bool isbm;
 
@@ -978,7 +979,7 @@ struct shaper_t{
         }
         case 1:{
           if(tra0[kiibm].t0(
-            &shaper.KeyTree,
+            &shaper._KeyTree,
             sizeof(*kd0) * 8,
             &kd0[kiibm],
             KeyBitOrderAny
@@ -1002,7 +1003,7 @@ struct shaper_t{
         }
         case 2:{
           if(tra1[kiibm].t0(
-            &shaper.KeyTree,
+            &shaper._KeyTree,
             kt->sibit(),
             &kd1[kiibm],
             kt->BitOrder
