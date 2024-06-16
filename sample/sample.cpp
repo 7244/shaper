@@ -193,10 +193,10 @@ int main(){
     gl.Clear(gl_t::COLOR_BUFFER_BIT);
 
     {
-      auto sid0rd = (shape_square_RenderData_t *)shaper.GetRenderData(sid0);
+      auto sid0rd = (shape_square_RenderData_t *)sid0.GetRenderData(shaper);
       sid0rd->p0 = -8 + std::sin(0.25 * iframe) * 32;
       sid0rd->p1 = -8 + std::cos(0.25 * iframe) * 32;
-      auto sid1rd = (shape_square_RenderData_t *)shaper.GetRenderData(sid1);
+      auto sid1rd = (shape_square_RenderData_t *)sid1.GetRenderData(shaper);
       sid1rd->p0 = +8 + std::cos(0.25 * iframe) * 32;
       sid1rd->p1 = +8 + std::sin(0.25 * iframe) * 32;
     }
