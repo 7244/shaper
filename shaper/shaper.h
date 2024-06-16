@@ -397,11 +397,6 @@ struct shaper_t{
     return ShapeList[ShapeID].ElementIndex;
   }
 
-  KeyPackSize_t GetKeyPackSize(ShapeID_t sid){
-    auto &s = ShapeList[sid];
-    auto &bm = BlockManager[s.bmid];
-    return bm.KeyPackSize;
-  }
   ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
     return ShapeTypes[sti].RenderDataSize;
   }
@@ -409,6 +404,17 @@ struct shaper_t{
     return ShapeTypes[sti].DataSize;
   }
 
+  KeyPackSize_t GetKeyOffset(
+    KeyIndexInBM_t kiibm,
+    KeyPackSize_t oo /* output offset */
+  ){
+    return kiibm * sizeof(KeyTypeIndex_t) + sizeof(KeyTypeIndex_t) + oo;
+  }
+  KeyPackSize_t GetKeysSize(ShapeID_t sid){
+    auto &s = ShapeList[sid];
+    auto &bm = BlockManager[s.bmid];
+    return bm.KeyPackSize;
+  }
   uint8_t *GetKeys(ShapeID_t ShapeID){
     auto &s = ShapeList[ShapeID];
     auto &bm = BlockManager[s.bmid];
