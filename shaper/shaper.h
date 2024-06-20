@@ -427,7 +427,7 @@ struct shaper_t{
   void WriteKeys(ShapeID_t ShapeID, void *dst){
     auto &s = ShapeList[ShapeID];
     auto &bm = BlockManager[s.bmid];
-    __MemoryCopy(&bm.KeyPack, dst, bm.KeyPackSize);
+    __MemoryCopy(bm.KeyPack, dst, bm.KeyPackSize);
   }
 
   BlockUnique_t &GetBlockUnique(
