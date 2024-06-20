@@ -969,7 +969,7 @@ struct shaper_t{
         case 0:{
           tra0[kiibm].i0(
             tra1[(uintptr_t)kiibm - 1].Output, /* tra1 index is underflowable on purpose */
-            KeyBitOrderAny
+            KeyBitOrderLow
           );
           State = 1;
         }
@@ -978,7 +978,7 @@ struct shaper_t{
             &shaper._KeyTree,
             sizeof(*kd0) * 8,
             &kd0[kiibm],
-            KeyBitOrderAny
+            KeyBitOrderLow
           ) == false){
             if(kiibm == 0){
               return false;
