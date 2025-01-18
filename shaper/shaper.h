@@ -189,13 +189,12 @@ struct shaper_t{
   #define BDBT_set_AreWeInsideStruct 1
   #include <BDBT/BDBT.h>
   _KeyTree_t _KeyTree;
-  typedef _KeyTree_Key_t _Key_t;
   _KeyTree_NodeReference_t _KeyTree_root;
 
-  typedef _Key_t::BitOrder_t KeyBitOrder_t;
-  constexpr static KeyBitOrder_t KeyBitOrderLow = _Key_t::BitOrderLow;
-  constexpr static KeyBitOrder_t KeyBitOrderHigh = _Key_t::BitOrderHigh;
-  constexpr static KeyBitOrder_t KeyBitOrderAny = _Key_t::BitOrderAny;
+  typedef _KeyTree_BitOrder_t KeyBitOrder_t;
+  constexpr static KeyBitOrder_t KeyBitOrderLow = _KeyTree_BitOrderLow;
+  constexpr static KeyBitOrder_t KeyBitOrderHigh = _KeyTree_BitOrderHigh;
+  constexpr static KeyBitOrder_t KeyBitOrderAny = _KeyTree_BitOrderAny;
 
   struct _KeyType_t{
     KeySizeInBytes_t Size;
@@ -735,7 +734,7 @@ struct shaper_t{
 
     _KeyTree_NodeReference_t nr = _KeyTree_root;
     KeyPackSize_t ikp = 0;
-    _Key_t::KeySize_t bdbt_ki;
+    _KeyTree_KeySize_t bdbt_ki;
     _KeyType_t *kt;
     uint8_t step;
 
@@ -743,7 +742,7 @@ struct shaper_t{
     while(ikp != KeyPackSize){
 
       auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
-      _Key_t::q(&_KeyTree, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
+      _KeyTree_Query(&_KeyTree, true, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
       if(bdbt_ki != sizeof(*kti) * 8){
         step = 0;
         goto gt_newbm;
@@ -751,7 +750,7 @@ struct shaper_t{
       ikp += sizeof(*kti);
 
       kt = &_KeyTypes[_kti_GetNormal(*kti)];
-      _Key_t::q(&_KeyTree, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
+      _KeyTree_Query(&_KeyTree, true, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
       if(bdbt_ki != kt->sibit()){
         step = 1;
         goto gt_newbm;
@@ -792,7 +791,7 @@ struct shaper_t{
 
         out = _KeyTree.NewNode();
 
-        _Key_t::a(&_KeyTree, sizeof(*kti) * 8, kti, bdbt_ki, nr, out);
+        _KeyTree_Add(&_KeyTree, true, sizeof(*kti) * 8, kti, bdbt_ki, nr, out);
 
         ikp += sizeof(*kti);
       }
@@ -804,7 +803,7 @@ struct shaper_t{
           out = *(_KeyTree_NodeReference_t *)&bmid;
         }
 
-        _Key_t::a(&_KeyTree, kt->sibit(), &_KeyPack[ikp], bdbt_ki, nr, out);
+        _KeyTree_Add(&_KeyTree, true, kt->sibit(), &_KeyPack[ikp], bdbt_ki, nr, out);
 
         ikp += kt->Size;
       }
@@ -903,21 +902,25 @@ struct shaper_t{
     KeySizeInBytes_t ks[shaper_set_MaxKeyAmountInBM * 2];
 
     auto KeyPack = bm.KeyPack;
-    auto knr = _KeyTree_root;
+
     KeyPackSize_t ikp = 0;
     _KeyIndexInBM_t _kiibm = 0;
-    while(ikp != bm.KeyPackSize){
-      auto kti = (KeyTypeIndex_t *)&KeyPack[ikp];
-      knrs[_kiibm] = knr;
-      ks[_kiibm++] = sizeof(*kti);
-      _Key_t::cq(&_KeyTree, sizeof(*kti) * 8, kti, &knr);
-      ikp += sizeof(*kti);
 
-      auto &kt = _KeyTypes[_kti_GetNormal(*kti)];
-      knrs[_kiibm] = knr;
-      ks[_kiibm++] = kt.Size;
-      _Key_t::cq(&_KeyTree, kt.sibit(), &KeyPack[ikp], &knr);
-      ikp += kt.Size;
+    {
+      auto knr = _KeyTree_root;
+      while(ikp != bm.KeyPackSize){
+        auto kti = (KeyTypeIndex_t *)&KeyPack[ikp];
+        knrs[_kiibm] = knr;
+        ks[_kiibm++] = sizeof(*kti);
+        _KeyTree_ConfidentQuery(&_KeyTree, true, sizeof(*kti) * 8, kti, &knr);
+        ikp += sizeof(*kti);
+
+        auto &kt = _KeyTypes[_kti_GetNormal(*kti)];
+        knrs[_kiibm] = knr;
+        ks[_kiibm++] = kt.Size;
+        _KeyTree_ConfidentQuery(&_KeyTree, true, kt.sibit(), &KeyPack[ikp], &knr);
+        ikp += kt.Size;
+      }
     }
 
     /* TODO this part can be faster if used some different function instead of .r */
@@ -925,7 +928,10 @@ struct shaper_t{
     while(1){
       auto size = ks[_kiibm];
       ikp -= size;
-      _Key_t::r(&_KeyTree, (KeySizeInBits_t)size * 8, &KeyPack[ikp], knrs[_kiibm]);
+      {
+        auto knr = knrs[_kiibm];
+        _KeyTree_Remove(&_KeyTree, true, (KeySizeInBits_t)size * 8, &KeyPack[ikp], &knr);
+      }
       if(_KeyTree.inrhc(knrs[_kiibm])){
         break;
       }
@@ -949,9 +955,9 @@ struct shaper_t{
 
     KeyTypeIndex_t kd0[shaper_set_MaxKeyAmountInBM];
     KeyData_t kd1[shaper_set_MaxKeySizesSum][shaper_set_MaxKeyAmountInBM];
-    _Key_t::Traverse_t tra0[shaper_set_MaxKeyAmountInBM];
-    _Key_t::Traverse_t behindtra; /* little maneuver */
-    _Key_t::Traverse_t tra1[shaper_set_MaxKeyAmountInBM];
+    _KeyTree_Traverse_t tra0[shaper_set_MaxKeyAmountInBM];
+    _KeyTree_Traverse_t behindtra; /* little maneuver */
+    _KeyTree_Traverse_t tra1[shaper_set_MaxKeyAmountInBM];
 
     void Init(
       shaper_t &shaper
@@ -967,18 +973,21 @@ struct shaper_t{
 
       switch(State){
         case 0:{
-          tra0[kiibm].i0(
-            tra1[(uintptr_t)kiibm - 1].Output, /* tra1 index is underflowable on purpose */
-            KeyBitOrderLow
+          _KeyTree_TraverseInit(
+            &tra0[kiibm],
+            KeyBitOrderLow,
+            tra1[(uintptr_t)kiibm - 1].Output /* tra1 index is underflowable on purpose */
           );
           State = 1;
         }
         case 1:{
-          if(tra0[kiibm].t0(
+          if(_KeyTree_Traverse(
             &shaper._KeyTree,
+            &tra0[kiibm],
+            true,
+            KeyBitOrderLow,
             sizeof(*kd0) * 8,
-            &kd0[kiibm],
-            KeyBitOrderLow
+            &kd0[kiibm]
           ) == false){
             if(kiibm == 0){
               return false;
@@ -991,18 +1000,21 @@ struct shaper_t{
           }
           isbm = _kti_GetLastBit(kd0[kiibm]);
           kt = &shaper._KeyTypes[_kti_GetNormal(kd0[kiibm])];
-          tra1[kiibm].i0(
-            tra0[kiibm].Output,
-            kt->BitOrder
+          _KeyTree_TraverseInit(
+            &tra1[kiibm],
+            kt->BitOrder,
+            tra0[kiibm].Output
           );
           State = 2;
         }
         case 2:{
-          if(tra1[kiibm].t0(
+          if(_KeyTree_Traverse(
             &shaper._KeyTree,
+            &tra1[kiibm],
+            true,
+            kt->BitOrder,
             kt->sibit(),
-            &kd1[kiibm],
-            kt->BitOrder
+            &kd1[kiibm]
           ) == false){
             State = 1;
             goto gt_reswitch;
