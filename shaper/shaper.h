@@ -742,7 +742,7 @@ struct shaper_t{
     while(ikp != KeyPackSize){
 
       auto kti = (KeyTypeIndex_t *)&_KeyPack[ikp];
-      _KeyTree_Query(&_KeyTree, true, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
+      _KeyTree_QueryNoPointer(&_KeyTree, true, sizeof(*kti) * 8, kti, &bdbt_ki, &nr);
       if(bdbt_ki != sizeof(*kti) * 8){
         step = 0;
         goto gt_newbm;
@@ -750,7 +750,7 @@ struct shaper_t{
       ikp += sizeof(*kti);
 
       kt = &_KeyTypes[_kti_GetNormal(*kti)];
-      _KeyTree_Query(&_KeyTree, true, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
+      _KeyTree_QueryNoPointer(&_KeyTree, true, kt->sibit(), &_KeyPack[ikp], &bdbt_ki, &nr);
       if(bdbt_ki != kt->sibit()){
         step = 1;
         goto gt_newbm;
