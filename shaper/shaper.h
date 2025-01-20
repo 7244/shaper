@@ -182,7 +182,6 @@ struct shaper_t{
   #define BDBT_set_prefix _KeyTree
   #define BDBT_set_type_node _ktbmnr_t
   #define BDBT_set_lcpp
-  #define BDBT_set_KeySize 0
   #ifdef shaper_set_MaxKeySize
     #define BDBT_set_MaxKeySize (shaper_set_MaxKeySize * 8)
   #endif
