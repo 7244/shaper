@@ -208,9 +208,10 @@ struct shaper_t{
   KeyTypeAmount_t KeyTypeAmount;
 
   #define BLL_set_prefix BlockList
-  #define BLL_set_BufferUpdateInfo \
+  #define BLL_set_nrtra 1
+  #define BLL_set_CapacityUpdateInfo \
     auto st = OFFSETLESS(bll, ShapeType_t, BlockList); \
-    st->shaper->_BlockListBufferChange(st->sti, New);
+    st->shaper->_BlockListCapacityChange(st->sti, old_capacity, new_capacity);
   #define BLL_set_Link 1
   #define BLL_set_LinkSentinel 0
   #define BLL_set_AreWeInsideStruct 1
@@ -256,6 +257,7 @@ struct shaper_t{
   #define BLL_set_Link 0
   #define BLL_set_Recycle 0
   #define BLL_set_IntegerNR 1
+  #define BLL_set_Usage 1
   #define BLL_set_CPP_Node_ConstructDestruct 1
   #define BLL_set_CPP_CopyAtPointerChange 1
   #define BLL_set_AreWeInsideStruct 1
@@ -344,6 +346,7 @@ struct shaper_t{
   }
 
   #define BLL_set_prefix BlockEditQueue
+  #define BLL_set_Clear 1
   #define BLL_set_Link 1
   #define BLL_set_AreWeInsideStruct 1
   #define BLL_set_NodeData \
@@ -638,11 +641,9 @@ struct shaper_t{
     /* TODO remove all block edit queue stuff */
 
     BlockList_t::nrtra_t traverse;
-    traverse.Open(&st.BlockList);
-    #if shaper_set_fan
-    st.m_vao.bind(gloco->get_context());
-    #endif
-    while(traverse.Loop(&st.BlockList)){
+    BlockList_t::nr_t node_id;
+    traverse.Open(&st.BlockList, &node_id);
+    while(traverse.Loop(&st.BlockList, &node_id)){
       #if shaper_set_fan
       fan::opengl::core::edit_glbuffer(
         gloco->get_context(),
@@ -656,7 +657,11 @@ struct shaper_t{
     }
     traverse.Close(&st.BlockList);
   }
-  void _BlockListBufferChange(ShapeTypeIndex_t sti, uintptr_t New){
+  void _BlockListCapacityChange(
+    ShapeTypeIndex_t sti,
+    uintptr_t old_capacity,
+    uintptr_t new_capacity
+  ){
     auto &st = ShapeTypes[sti];
 
     #if shaper_set_fan
@@ -665,7 +670,7 @@ struct shaper_t{
       gloco->get_context(),
       st.m_vbo.m_buffer,
       0,
-      New * st.RenderDataSize * st.MaxElementPerBlock(),
+      new_capacity * st.RenderDataSize * st.MaxElementPerBlock(),
       fan::opengl::GL_DYNAMIC_DRAW,
       fan::opengl::GL_ARRAY_BUFFER
     );
