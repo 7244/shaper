@@ -428,7 +428,7 @@ struct shaper_t{
   void WriteKeys(ShapeID_t ShapeID, void *dst){
     auto &s = ShapeList[ShapeID];
     auto &bm = BlockManager[s.bmid];
-    __MemoryCopy(bm.KeyPack, dst, bm.KeyPackSize);
+    __builtin_memcpy(dst, bm.KeyPack, bm.KeyPackSize);
   }
 
   BlockUnique_t &GetBlockUnique(
@@ -782,7 +782,7 @@ struct shaper_t{
     bm = &BlockManager[bmid];
     bm->KeyPackSize = KeyPackSize;
     bm->KeyPack = (uint8_t *)A_resize(NULL, bm->KeyPackSize);
-    __MemoryCopy(KeyPack, bm->KeyPack, bm->KeyPackSize);
+    __builtin_memcpy(bm->KeyPack, KeyPack, bm->KeyPackSize);
     bm->sti = sti;
     bm->FirstBlockNR = _newblid(sti, bm);
 
@@ -827,14 +827,14 @@ struct shaper_t{
     ShapeList[shapeid].blid = bm->LastBlockNR;
     ShapeList[shapeid].ElementIndex = bm->LastBlockElementCount;
 
-    __MemoryCopy(
-      RenderData,
+    __builtin_memcpy(
       GetRenderData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
+      RenderData,
       st.RenderDataSize
     );
-    __MemoryCopy(
-      Data,
+    __builtin_memcpy(
       GetData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
+      Data,
       st.DataSize
     );
     _GetShapeID(sti, bm->LastBlockNR, bm->LastBlockElementCount) = shapeid;
@@ -860,12 +860,12 @@ struct shaper_t{
 
     auto &ls = ShapeList[lsid];
 
-    __MemoryMove(
+    __builtin_memmove(
       GetRenderData(sti, s.blid, s.ElementIndex),
       GetRenderData(sti, ls.blid, ls.ElementIndex),
       st.RenderDataSize
     );
-    __MemoryMove(
+    __builtin_memmove(
       GetData(sti, s.blid, s.ElementIndex),
       GetData(sti, ls.blid, ls.ElementIndex),
       st.DataSize

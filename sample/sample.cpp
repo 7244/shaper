@@ -80,7 +80,7 @@ template<
   structarr_t a;
   uintptr_t i = 0;
   ([&](auto arg) {
-    __MemoryCopy(&arg, &a[i], sizeof(arg));
+    __builtin_memcpy(&a[i], &arg, sizeof(arg));
     i += sizeof(arg);
     }(args), ...);
   constexpr uintptr_t count = (!!(sizeof(Ts) + 1) + ...);
