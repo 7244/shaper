@@ -624,26 +624,26 @@ struct shaper_t{
 
     _InformCapacity = 0;
     {
-      BlockList_t BlockList;
-      BlockList.Open(
+      BlockList_t BlockList = st.BlockList;
+      st.BlockList.Open(
         (
           (uintptr_t)bp.RenderDataSize + bp.DataSize + sizeof(ShapeList_t::nr_t)
         ) * (bp.MaxElementPerBlock) + sizeof(BlockUnique_t)
       );
 
       /* slow and steady */
-      while(BlockList.SizeNormalized() != st.BlockList.SizeNormalized()){
-        BlockList.NewNode();
+      while(st.BlockList.SizeNormalized() != BlockList.SizeNormalized()){
+        st.BlockList.NewNode();
       }
 
       {
         BlockList_t::RecycleTraverse_t rt;
         BlockList_t::nr_t node_id;
-        rt.Open(&st.BlockList, &node_id);
-        while(rt.Loop(&st.BlockList, &node_id)){
-          BlockList.Recycle(node_id);
+        rt.Open(&BlockList, &node_id);
+        while(rt.Loop(&BlockList, &node_id)){
+          st.BlockList.Recycle(node_id);
         }
-        rt.Close(&st.BlockList);
+        rt.Close(&BlockList);
       }
 
       {
@@ -669,29 +669,35 @@ struct shaper_t{
               bm.KeyPackSize,
               bm.KeyPack,
               element_count,
-              (const void *)GetRenderData(
-                sti,
+              (const void *)_GetRenderData(
+                BlockList,
+                bp.RenderDataSize,
+                bp.DataSize,
+                bp.MaxElementPerBlock,
                 block_id,
                 0
               ),
-              (const void *)GetData(
-                sti,
+              (const void *)_GetData(
+                BlockList,
+                bp.RenderDataSize,
+                bp.DataSize,
+                bp.MaxElementPerBlock,
                 block_id,
                 0
               ),
               (void *)_GetRenderData(
-                BlockList,
-                bp.RenderDataSize,
-                bp.DataSize,
-                bp.MaxElementPerBlock,
+                st.BlockList,
+                st.RenderDataSize,
+                st.DataSize,
+                st.MaxElementPerBlock(),
                 block_id,
                 0
               ),
               (void *)_GetData(
-                BlockList,
-                bp.RenderDataSize,
-                bp.DataSize,
-                bp.MaxElementPerBlock,
+                st.BlockList,
+                st.RenderDataSize,
+                st.DataSize,
+                st.MaxElementPerBlock,
                 block_id,
                 0
               )
@@ -700,14 +706,13 @@ struct shaper_t{
             if(block_id == bm.LastBlockNR){
               break;
             }
-            block_id = block_id.Next(&st.BlockList);
+            block_id = block_id.Next(&BlockList);
           }
         }
         t.Close(&BlockManager);
       }
 
-      st.BlockList.Close();
-      st.BlockList = BlockList;
+      BlockList.Close();
     }
     _InformCapacity = 1;
 
