@@ -664,6 +664,11 @@ struct shaper_t{
             }
             element_count++;
 
+            if(st.MaxElementPerBlock() != bp.MaxElementPerBlock){
+              /* not supported yet */
+              __abort();
+            }
+
             _ShapeTypeChange(
               sti,
               bm.KeyPackSize,
@@ -671,33 +676,33 @@ struct shaper_t{
               element_count,
               (const void *)_GetRenderData(
                 BlockList,
-                bp.RenderDataSize,
-                bp.DataSize,
-                bp.MaxElementPerBlock,
+                st.RenderDataSize,
+                st.DataSize,
+                st.MaxElementPerBlock(),
                 block_id,
                 0
               ),
               (const void *)_GetData(
                 BlockList,
+                st.RenderDataSize,
+                st.DataSize,
+                st.MaxElementPerBlock(),
+                block_id,
+                0
+              ),
+              (void *)_GetRenderData(
+                st.BlockList,
                 bp.RenderDataSize,
                 bp.DataSize,
                 bp.MaxElementPerBlock,
                 block_id,
                 0
               ),
-              (void *)_GetRenderData(
-                st.BlockList,
-                st.RenderDataSize,
-                st.DataSize,
-                st.MaxElementPerBlock(),
-                block_id,
-                0
-              ),
               (void *)_GetData(
                 st.BlockList,
-                st.RenderDataSize,
-                st.DataSize,
-                st.MaxElementPerBlock(),
+                bp.RenderDataSize,
+                bp.DataSize,
+                bp.MaxElementPerBlock,
                 block_id,
                 0
               )
