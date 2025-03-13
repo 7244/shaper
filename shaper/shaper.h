@@ -697,7 +697,7 @@ struct shaper_t{
                 st.BlockList,
                 st.RenderDataSize,
                 st.DataSize,
-                st.MaxElementPerBlock,
+                st.MaxElementPerBlock(),
                 block_id,
                 0
               )
