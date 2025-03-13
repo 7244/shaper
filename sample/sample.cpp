@@ -155,12 +155,12 @@ int main(){
   shaper.AddKey(kids::prog, sizeof(KeyType_prog), shaper_t::KeyBitOrderAny);
   shaper.AddKey(kids::sti, sizeof(KeyType_sti), shaper_t::KeyBitOrderAny);
 
-  shaper.AddShapeType(shapes::square, {
+  shaper.SetShapeType(shapes::square, {
     .MaxElementPerBlock = 0xff,
     .RenderDataSize = sizeof(shape_square_RenderData_t),
     .DataSize = sizeof(shape_square_Data_t)
   });
-  shaper.AddShapeType(shapes::circle, {
+  shaper.SetShapeType(shapes::circle, {
     .MaxElementPerBlock = 0xff,
     .RenderDataSize = sizeof(shape_circle_RenderData_t),
     .DataSize = sizeof(shape_circle_Data_t)
