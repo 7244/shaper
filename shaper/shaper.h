@@ -718,7 +718,9 @@ struct shaper_t{
     while(beid != BlockEditQueue.dst){
       auto &be = BlockEditQueue[beid];
       auto &st = ShapeTypes[be.sti];
+      (void)st;
       auto &bu = GetBlockUnique(be.sti, be.blid);
+
 
       #if defined(shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse)
         shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse
@@ -775,6 +777,7 @@ struct shaper_t{
 
   void _RenderDataReset(ShapeTypeIndex_t sti){
     auto &st = ShapeTypes[sti];
+    (void)st;
 
     /* TODO remove all block edit queue stuff */
 
@@ -788,6 +791,7 @@ struct shaper_t{
     uintptr_t new_capacity
   ){
     auto &st = ShapeTypes[sti];
+    (void)st;
 
     #if defined(shaper_set_ExpandInside__BlockListCapacityChange)
       shaper_set_ExpandInside__BlockListCapacityChange
