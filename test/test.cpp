@@ -50,13 +50,14 @@ template<
   structarr_t<s> a;
   uintptr_t i = 0;
   ([&](auto arg) {
-    __MemoryCopy(&arg, &a[i], sizeof(arg));
+    __builtin_memcpy(&a[i], &arg, sizeof(arg));
     i += sizeof(arg);
   }(args), ...);
   constexpr uintptr_t count = (!!(sizeof(Ts) + 1) + ...);
   static_assert(count % 2 == 0);
   uintptr_t LastKeyOffset = s - (sizeof(Ts), ...) - 1;
-  return shaper.add(sti, &a, s, LastKeyOffset, &rd, &d);
+  shaper.PrepareKeysForAdd(&a, LastKeyOffset);
+  return shaper.add(sti, &a, s, &rd, &d);
 }
 
 int main(){
@@ -69,11 +70,13 @@ int main(){
 
   shaper.AddKey(kids::sti, sizeof(KeyType_sti), shaper_t::KeyBitOrderAny);
 
-  shaper.AddShapeType(shapes::rectangle, {
-    .MaxElementPerBlock = 0xff,
-    .RenderDataSize = sizeof(shape_rectangle_RenderData_t),
-    .DataSize = 0
-  });
+  shaper.SetShapeType(shapes::rectangle,
+    shaper_t::BlockProperties_t{
+      .MaxElementPerBlock = 0xff,
+      .RenderDataSize = sizeof(shape_rectangle_RenderData_t),
+      .DataSize = 0
+    }
+  );
 
   auto sid = shape_add(shapes::rectangle,
     shape_rectangle_RenderData_t{
