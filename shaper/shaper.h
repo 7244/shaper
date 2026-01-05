@@ -42,14 +42,6 @@
   #define shaper_set_RenderDataOffsetType uint32_t
 #endif
 
-#ifndef shaper_set_fan
-  #define shaper_set_fan 0
-#endif
-#ifdef gloco
-  #error use cpp not c
-#endif
-#define gloco gloco_is_not_allowed
-
 struct shaper_t{
   #if shaper_set_MaxShapeTypes <= 0xff
     typedef uint8_t ShapeTypeAmount_t;
@@ -241,20 +233,8 @@ struct shaper_t{
     ShapeRenderDataSize_t RenderDataSize;
     ShapeDataSize_t DataSize;
 
-    #if shaper_set_fan
-    fan::opengl::core::vao_t m_vao;
-    fan::opengl::core::vbo_t m_vbo;
-
-    struct init_t {
-      uint32_t index;
-      uint32_t size;
-      uint32_t type; // for example GL_FLOAT
-      uint32_t stride;
-      void* pointer;
-    };
-
-    std::vector<init_t> locations;
-    fan::opengl::context_t::shader_nr_t shader;
+    #if defined(shaper_set_ExpandInside_ShapeType)
+      shaper_set_ExpandInside_ShapeType
     #endif
 
     MaxElementPerBlock_t MaxElementPerBlock(){
@@ -485,11 +465,11 @@ struct shaper_t{
       return shaper.ShapeList[*this].ElementIndex;
     }
 
-    ShapeRenderData_t *GetRenderData(shaper_t &shaper){
+    ShapeRenderData_t *GetRenderData(shaper_t &shaper) const {
       auto &s = shaper.ShapeList[*this];
       return shaper.GetRenderData(s.sti, s.blid, s.ElementIndex);
     }
-    ShapeData_t *GetData(shaper_t &shaper){
+    ShapeData_t *GetData(shaper_t &shaper) const {
       auto &s = shaper.ShapeList[*this];
       return shaper.GetData(s.sti, s.blid, s.ElementIndex);
     }
@@ -541,9 +521,8 @@ struct shaper_t{
     decltype(ShapeType_t::RenderDataSize) RenderDataSize;
     decltype(ShapeType_t::DataSize) DataSize;
 
-    #if shaper_set_fan
-    std::vector<ShapeType_t::init_t> locations;
-    fan::opengl::context_t::shader_nr_t shader;
+    #if defined(shaper_set_ExpandInside_BlockProperties)
+      shaper_set_ExpandInside_BlockProperties
     #endif
   };
 
@@ -608,7 +587,7 @@ struct shaper_t{
 
   void SetShapeType(
     ShapeTypeIndex_t sti,
-    const BlockProperties_t bp
+    const BlockProperties_t& bp
   ){
     while(sti >= ShapeTypes.Usage()){
       auto csti = ShapeTypes.NewNode();
@@ -725,40 +704,14 @@ struct shaper_t{
     st.RenderDataSize = bp.RenderDataSize;
     st.DataSize = bp.DataSize;
 
-    #if shaper_set_fan
-    auto& context = gloco->get_context();
-
-    st.m_vao.open(context);
-    st.m_vbo.open(context, fan::opengl::GL_ARRAY_BUFFER);
-    st.m_vao.bind(context);
-    st.m_vbo.bind(context);
-    st.shader = bp.shader;
-    st.locations = bp.locations;
-    uint64_t ptr_offset = 0;
-    for (const auto& location : st.locations) {
-      context.opengl.glEnableVertexAttribArray(location.index);
-      context.opengl.glVertexAttribPointer(location.index, location.size, location.type, fan::opengl::GL_FALSE, location.stride, (void*)ptr_offset);
-      context.opengl.glVertexAttribDivisor(location.index, 1);
-      switch (location.type) {
-      case fan::opengl::GL_FLOAT: {
-        ptr_offset += location.size * sizeof(f32_t);
-        break;
-      }
-      case fan::opengl::GL_UNSIGNED_INT: {
-        ptr_offset += location.size * sizeof(fan::opengl::GLuint);
-        break;
-      }
-      default: {
-        fan::throw_error_impl();
-      }
-      }
-    }
+    #if defined(shaper_set_ExpandInside_SetShapeType)
+      shaper_set_ExpandInside_SetShapeType
     #endif
   }
 
   void ProcessBlockEditQueue(){
-    #if shaper_set_fan
-    fan::opengl::context_t &context = "?";
+    #if defined(shaper_set_ExpandInside_ProcessBlockEditQueue)
+      shaper_set_ExpandInside_ProcessBlockEditQueue
     #endif
 
     auto beid = BlockEditQueue.GetNodeFirst();
@@ -767,16 +720,8 @@ struct shaper_t{
       auto &st = ShapeTypes[be.sti];
       auto &bu = GetBlockUnique(be.sti, be.blid);
 
-      #if shaper_set_fan
-      st.m_vao.bind(context);
-      fan::opengl::core::edit_glbuffer(
-        gloco->get_context(),
-        st.m_vbo.m_buffer,
-        GetRenderData(be.sti, be.blid, 0) + bu.MinEdit,
-        GetRenderDataOffset(be.sti, be.blid) + bu.MinEdit,
-        bu.MaxEdit - bu.MinEdit,
-        fan::opengl::GL_ARRAY_BUFFER
-      );
+      #if defined(shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse)
+        shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse
       #endif
 
       bu.clear();
@@ -797,16 +742,18 @@ struct shaper_t{
     ShapeType_t &st = ShapeTypes[sti];
     BlockUnique_t &bu = GetBlockUnique(sti, blid);
 
-    #if shaper_set_fan
-    bu.MinEdit = std::min(
-      bu.MinEdit,
-      (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start
-    );
-    bu.MaxEdit = std::max(
-      bu.MaxEdit,
-      (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start + byte_count
-    );
-    #endif
+    {
+      shaper_set_RenderDataOffsetType NewMinEdit =
+        (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start;
+      if(NewMinEdit < bu.MinEdit){
+        bu.MinEdit = NewMinEdit;
+      }
+      shaper_set_RenderDataOffsetType NewMaxEdit =
+        (shaper_set_RenderDataOffsetType)eiib * st.RenderDataSize + byte_start + byte_count;
+      if(NewMaxEdit > bu.MaxEdit){
+        bu.MaxEdit = NewMaxEdit;
+      }
+    }
 
     if(!bu.beid.iic()){
       return;
@@ -831,22 +778,9 @@ struct shaper_t{
 
     /* TODO remove all block edit queue stuff */
 
-    BlockList_t::nrtra_t traverse;
-    BlockList_t::nr_t node_id;
-    traverse.Open(&st.BlockList, &node_id);
-    while(traverse.Loop(&st.BlockList, &node_id)){
-      #if shaper_set_fan
-      fan::opengl::core::edit_glbuffer(
-        gloco->get_context(),
-        st.m_vbo.m_buffer,
-        GetRenderData(sti, traverse.nr, 0),
-        GetRenderDataOffset(sti, traverse.nr),
-        st.RenderDataSize * st.MaxElementPerBlock(),
-        fan::opengl::GL_ARRAY_BUFFER
-      );
-      #endif
-    }
-    traverse.Close(&st.BlockList);
+    #if defined(shaper_set_ExpandInside__RenderDataReset)
+      shaper_set_ExpandInside__RenderDataReset
+    #endif
   }
   void _BlockListCapacityChange(
     ShapeTypeIndex_t sti,
@@ -855,18 +789,11 @@ struct shaper_t{
   ){
     auto &st = ShapeTypes[sti];
 
-    #if shaper_set_fan
-    st.m_vbo.bind(gloco->get_context());
-    fan::opengl::core::write_glbuffer(
-      gloco->get_context(),
-      st.m_vbo.m_buffer,
-      0,
-      new_capacity * st.RenderDataSize * st.MaxElementPerBlock(),
-      fan::opengl::GL_DYNAMIC_DRAW,
-      fan::opengl::GL_ARRAY_BUFFER
-    );
-    _RenderDataReset(sti);
+    #if defined(shaper_set_ExpandInside__BlockListCapacityChange)
+      shaper_set_ExpandInside__BlockListCapacityChange
     #endif
+
+    _RenderDataReset(sti);
   }
 
   BlockList_t::nr_t _newblid(
@@ -1269,14 +1196,43 @@ struct shaper_t{
     void *GetRenderData(shaper_t &shaper){
       return shaper.GetRenderData(sti, From, 0);
     }
+    BlockList_t::nr_t GetBlockID(){
+      return From;
+    }
     void *GetData(shaper_t &shaper){
       return shaper.GetData(sti, From, 0);
     }
   };
+
+  #if defined(shaper_set_ExpandInside)
+    shaper_set_ExpandInside
+  #endif
 };
 
-#undef gloco
-#undef shaper_set_fan
+#ifdef shaper_set_ExpandInside
+  #undef shaper_set_ExpandInside
+#endif
+#ifdef shaper_set_ExpandInside_ShapeType
+  #undef shaper_set_ExpandInside_ShapeType
+#endif
+#ifdef shaper_set_ExpandInside_BlockProperties
+  #undef shaper_set_ExpandInside_BlockProperties
+#endif
+#ifdef shaper_set_ExpandInside_SetShapeType
+  #undef shaper_set_ExpandInside_SetShapeType
+#endif
+#ifdef shaper_set_ExpandInside_ProcessBlockEditQueue
+  #undef shaper_set_ExpandInside_ProcessBlockEditQueue
+#endif
+#ifdef shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse
+  #undef shaper_set_ExpandInside_ProcessBlockEditQueue_Traverse
+#endif
+#ifdef shaper_set_ExpandInside__RenderDataReset
+  #undef shaper_set_ExpandInside__RenderDataReset
+#endif
+#ifdef shaper_set_ExpandInside__BlockListCapacityChange
+  #undef shaper_set_ExpandInside__BlockListCapacityChange
+#endif
 
 #undef shaper_set_RenderDataOffsetType
 #undef shaper_set_MaxShapeDataSize
