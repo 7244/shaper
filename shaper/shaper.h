@@ -476,6 +476,10 @@ struct shaper_t{
 
     constexpr ShapeID_t() = default;
     constexpr ShapeID_t(ShapeList_t::nr_t nr) : ShapeList_t::nr_t(nr) {}
+
+    #if defined(shaper_set_ExpandInside_ShapeID)
+      shaper_set_ExpandInside_ShapeID
+    #endif
   };
 
   ShapeRenderDataSize_t GetRenderDataSize(ShapeTypeIndex_t sti){
@@ -1237,6 +1241,9 @@ struct shaper_t{
 #endif
 #ifdef shaper_set_ExpandInside__BlockListCapacityChange
   #undef shaper_set_ExpandInside__BlockListCapacityChange
+#endif
+#ifdef shaper_set_ExpandInside_ShapeID
+  #undef shaper_set_ExpandInside_ShapeID
 #endif
 
 #undef shaper_set_RenderDataOffsetType
