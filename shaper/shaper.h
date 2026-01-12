@@ -42,6 +42,19 @@
   #define shaper_set_RenderDataOffsetType uint32_t
 #endif
 
+#ifndef shaper_set_RenderDisableable
+  #define shaper_set_RenderDisableable 0
+#endif
+#ifndef shaper_set_RenderDisableable_All
+  #define shaper_set_RenderDisableable_All 0
+#endif
+
+#if shaper_set_RenderDisableable_All
+  #if !shaper_set_RenderDisableable
+    #error ?
+  #endif
+#endif
+
 struct shaper_t{
   #if shaper_set_MaxShapeTypes <= 0xff
     typedef uint8_t ShapeTypeAmount_t;
@@ -71,14 +84,18 @@ struct shaper_t{
   #else
     #error ?
   #endif
-  #if shaper_set_MaxMaxElementPerBlock <= 0x100
-    typedef uint8_t ElementIndexInBlock_t;
-  #elif shaper_set_MaxMaxElementPerBlock <= 0x10000
-    typedef uint16_t ElementIndexInBlock_t;
-  #elif shaper_set_MaxMaxElementPerBlock <= 0x100000000
-    typedef uint32_t ElementIndexInBlock_t;
+  #if shaper_set_RenderDisableable
+    typedef MaxElementPerBlock_t ElementIndexInBlock_t;
   #else
-    #error ?
+    #if shaper_set_MaxMaxElementPerBlock <= 0x100
+      typedef uint8_t ElementIndexInBlock_t;
+    #elif shaper_set_MaxMaxElementPerBlock <= 0x10000
+      typedef uint16_t ElementIndexInBlock_t;
+    #elif shaper_set_MaxMaxElementPerBlock <= 0x100000000
+      typedef uint32_t ElementIndexInBlock_t;
+    #else
+      #error ?
+    #endif
   #endif
 
   typedef uint8_t KeyData_t;
@@ -229,7 +246,9 @@ struct shaper_t{
     */
     BlockList_t BlockList;
 
-    ElementIndexInBlock_t MaxElementPerBlock_m1; /* minus 1, (p.MaxElementPerBlock[n] - 1) */
+    /* minus 1, (p.MaxElementPerBlock[n] - 1) if shaper_set_RenderDisableable is 0 */
+    ElementIndexInBlock_t _MaxElementPerBlock;
+
     ShapeRenderDataSize_t RenderDataSize;
     ShapeDataSize_t DataSize;
 
@@ -237,8 +256,23 @@ struct shaper_t{
       shaper_set_ExpandInside_ShapeType
     #endif
 
+    uint8_t _MaxElementPerBlock_SubOrAddValue(){
+      return
+      #if shaper_set_RenderDisableable
+        0
+      #else
+        1
+      #endif
+      ;
+    }
+    MaxElementPerBlock_t MaxElementPerBlock(ElementIndexInBlock_t val){
+      return (MaxElementPerBlock_t)val + _MaxElementPerBlock_SubOrAddValue();
+    }
     MaxElementPerBlock_t MaxElementPerBlock(){
-      return (MaxElementPerBlock_t)MaxElementPerBlock_m1 + 1;
+      return MaxElementPerBlock(_MaxElementPerBlock);
+    }
+    ElementIndexInBlock_t _BlockElementCountToIndex(ElementIndexInBlock_t val){
+      return val - (_MaxElementPerBlock_SubOrAddValue() ? 0 : 1);
     }
   };
   #define BLL_set_prefix ShapeTypes
@@ -521,10 +555,20 @@ struct shaper_t{
       st.RenderDataSize;
   }
 
-  struct BlockProperties_t{
+  enum class ShapeTypePropertiesFlag_t : uint8_t{
+    #if shaper_set_RenderDisableable
+      #if !shaper_set_RenderDisableable_All
+        Disableable = (uint8_t)1 << 0
+      #endif
+    #endif
+  };
+
+  struct ShapeTypeProperties_t{
     MaxElementPerBlock_t MaxElementPerBlock;
     decltype(ShapeType_t::RenderDataSize) RenderDataSize;
     decltype(ShapeType_t::DataSize) DataSize;
+
+    uint32_t Flag;
 
     #if defined(shaper_set_ExpandInside_BlockProperties)
       shaper_set_ExpandInside_BlockProperties
@@ -592,7 +636,7 @@ struct shaper_t{
 
   void SetShapeType(
     ShapeTypeIndex_t sti,
-    const BlockProperties_t& bp
+    const ShapeTypeProperties_t& bp
   ){
     while(sti >= ShapeTypes.Usage()){
       auto csti = ShapeTypes.NewNode();
@@ -642,11 +686,13 @@ struct shaper_t{
 
           auto block_id = bm.FirstBlockNR;
           while(1){
-            MaxElementPerBlock_t element_count = st.MaxElementPerBlock_m1;
+            MaxElementPerBlock_t element_count;
             if(block_id == bm.LastBlockNR){
-              element_count = bm.LastBlockElementCount;
+              element_count = st.MaxElementPerBlock(bm.LastBlockElementCount);
             }
-            element_count++;
+            else{
+              element_count = st.MaxElementPerBlock();
+            }
 
             if(st.MaxElementPerBlock() != bp.MaxElementPerBlock){
               /* not supported yet */
@@ -705,7 +751,7 @@ struct shaper_t{
     }
     _InformCapacity = 1;
 
-    st.MaxElementPerBlock_m1 = bp.MaxElementPerBlock - 1;
+    st._MaxElementPerBlock = bp.MaxElementPerBlock - st._MaxElementPerBlock_SubOrAddValue();
     st.RenderDataSize = bp.RenderDataSize;
     st.DataSize = bp.DataSize;
 
@@ -811,7 +857,7 @@ struct shaper_t{
   ){
     auto &st = ShapeTypes[sti];
 
-    bm->LastBlockElementCount = 0;
+    bm->LastBlockElementCount = 1 - st._MaxElementPerBlock_SubOrAddValue();
     auto blid = st.BlockList.NewNode();
     bm->LastBlockNR = blid;
 
@@ -892,7 +938,7 @@ struct shaper_t{
     bmid = *(BlockManager_t::nr_t *)&nr;
     bm = &BlockManager[bmid];
 
-    if(bm->LastBlockElementCount == st.MaxElementPerBlock_m1){
+    if(bm->LastBlockElementCount == st._MaxElementPerBlock){
       auto lbnr = bm->LastBlockNR;
       auto nblid = _newblid(sti, bm);
       st.BlockList.linkNextOfOrphan(lbnr, nblid);
@@ -948,25 +994,27 @@ struct shaper_t{
 
     gt_nonewbm:
 
+    auto ElementIndex = st._BlockElementCountToIndex(bm->LastBlockElementCount);
+
     auto shapeid = ShapeList.NewNode();
     ShapeList[shapeid].sti = sti;
     ShapeList[shapeid].bmid = bmid;
     ShapeList[shapeid].blid = bm->LastBlockNR;
-    ShapeList[shapeid].ElementIndex = bm->LastBlockElementCount;
+    ShapeList[shapeid].ElementIndex = ElementIndex;
 
     __builtin_memcpy(
-      GetRenderData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
+      GetRenderData(sti, bm->LastBlockNR, ElementIndex),
       RenderData,
       st.RenderDataSize
     );
     __builtin_memcpy(
-      GetData(sti, bm->LastBlockNR, bm->LastBlockElementCount),
+      GetData(sti, bm->LastBlockNR, ElementIndex),
       Data,
       st.DataSize
     );
-    *GetShapeID(sti, bm->LastBlockNR, bm->LastBlockElementCount) = shapeid;
+    *GetShapeID(sti, bm->LastBlockNR, ElementIndex) = shapeid;
 
-    ElementIsFullyEdited(sti, bm->LastBlockNR, bm->LastBlockElementCount);
+    ElementIsFullyEdited(sti, bm->LastBlockNR, ElementIndex);
 
     return shapeid;
   }
@@ -980,7 +1028,7 @@ struct shaper_t{
     auto bmid = s.bmid;
     auto &bm = BlockManager[bmid];
 
-    auto lsid = *GetShapeID(sti, bm.LastBlockNR, bm.LastBlockElementCount);
+    auto lsid = *GetShapeID(sti, bm.LastBlockNR, st._BlockElementCountToIndex(bm.LastBlockElementCount));
     if(sid != lsid){
       ElementIsFullyEdited(sti, s.blid, s.ElementIndex);
     }
@@ -1008,7 +1056,7 @@ struct shaper_t{
     /* sid we deleted may be same as last so lets no longer access s and ls */
 
     /* we just deleted last so lets check if we can just decrease count */
-    if(bm.LastBlockElementCount != 0){
+    if(bm.LastBlockElementCount != 1 - st._MaxElementPerBlock_SubOrAddValue()){
       bm.LastBlockElementCount--;
       return;
     }
@@ -1020,7 +1068,7 @@ struct shaper_t{
       auto lblid = bm.LastBlockNR;
       bm.LastBlockNR = lblid.Prev(&st.BlockList);
       _deleteblid(sti, lblid);
-      bm.LastBlockElementCount = st.MaxElementPerBlock_m1;
+      bm.LastBlockElementCount = st._MaxElementPerBlock;
       return;
     }
 
@@ -1195,7 +1243,7 @@ struct shaper_t{
     }
     MaxElementPerBlock_t GetAmount(shaper_t &shaper){
       if(From == To){
-        return (MaxElementPerBlock_t)LastBlockElementCount + 1;
+        return shaper.ShapeTypes[sti].MaxElementPerBlock(LastBlockElementCount);
       }
       return shaper.ShapeTypes[sti].MaxElementPerBlock();
     }
@@ -1246,6 +1294,8 @@ struct shaper_t{
   #undef shaper_set_ExpandInside_ShapeID
 #endif
 
+#undef shaper_set_RenderDisableable_All
+#undef shaper_set_RenderDisableable
 #undef shaper_set_RenderDataOffsetType
 #undef shaper_set_MaxShapeDataSize
 #undef shaper_set_MaxShapeRenderDataSize

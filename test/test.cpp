@@ -70,13 +70,12 @@ int main(){
 
   shaper.AddKey(kids::sti, sizeof(KeyType_sti), shaper_t::KeyBitOrderAny);
 
-  shaper.SetShapeType(shapes::rectangle,
-    shaper_t::BlockProperties_t{
-      .MaxElementPerBlock = 0xff,
-      .RenderDataSize = sizeof(shape_rectangle_RenderData_t),
-      .DataSize = 0
-    }
-  );
+  shaper.SetShapeType(shapes::rectangle, {
+    .MaxElementPerBlock = 0xff,
+    .RenderDataSize = sizeof(shape_rectangle_RenderData_t),
+    .DataSize = 0,
+    .Flag = 0
+  });
 
   auto sid = shape_add(shapes::rectangle,
     shape_rectangle_RenderData_t{

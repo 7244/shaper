@@ -158,12 +158,14 @@ int main(){
   shaper.SetShapeType(shapes::square, {
     .MaxElementPerBlock = 0xff,
     .RenderDataSize = sizeof(shape_square_RenderData_t),
-    .DataSize = sizeof(shape_square_Data_t)
+    .DataSize = sizeof(shape_square_Data_t),
+    .Flag = 0
   });
   shaper.SetShapeType(shapes::circle, {
     .MaxElementPerBlock = 0xff,
     .RenderDataSize = sizeof(shape_circle_RenderData_t),
-    .DataSize = sizeof(shape_circle_Data_t)
+    .DataSize = sizeof(shape_circle_Data_t),
+    .Flag = 0
   });
 
   auto sid0 = shape_add(shapes::square,
